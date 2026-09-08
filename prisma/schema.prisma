@@ -1,4 +1,4 @@
-// Prisma schema for MyShelf — échange de jeux de société, livres et autres objets
+// Prisma schema for MyShelf — échange de jeux de société / jeux de rôle et organisation de parties
 
 generator client {
   provider = "prisma-client"
@@ -11,8 +11,8 @@ datasource db {
 }
 
 enum ItemCategory {
-  BOOK
-  GAME
+  BOARD_GAME
+  ROLE_PLAYING
   OTHER
 }
 
@@ -42,6 +42,24 @@ enum TradeSide {
   TO
 }
 
+enum EventLevel {
+  ALL_LEVELS
+  BEGINNER
+  INTERMEDIATE
+  EXPERT
+}
+
+enum EventRecurrence {
+  ONE_OFF
+  WEEKLY
+  MONTHLY
+}
+
+enum EventStatus {
+  ACTIVE
+  CANCELLED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -51,10 +69,12 @@ model User {
   avatarUrl    String?
   createdAt    DateTime @default(now())
 
-  items            Item[]
-  proposalsSent    TradeProposal[] @relation("ProposalsSent")
-  proposalsReceived TradeProposal[] @relation("ProposalsReceived")
-  messages         Message[]
+  items             Item[]
+  proposalsSent     TradeProposal[]    @relation("ProposalsSent")
+  proposalsReceived TradeProposal[]    @relation("ProposalsReceived")
+  messages          Message[]
+  hostedEvents      Event[]
+  eventParticipations EventParticipant[]
 }
 
 model Item {
@@ -114,4 +134,42 @@ model Message {
   createdAt       DateTime      @default(now())
 
   @@index([tradeProposalId])
+}
+
+model Event {
+  id              String          @id @default(cuid())
+  hostId          String
+  host            User            @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  gameType        ItemCategory
+  gameName        String?
+  level           EventLevel      @default(ALL_LEVELS)
+  recurrence      EventRecurrence @default(ONE_OFF)
+  city            String
+  location        String?
+  startAt         DateTime
+  maxParticipants Int?
+  status          EventStatus     @default(ACTIVE)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  participants EventParticipant[]
+
+  @@index([city])
+  @@index([startAt])
+  @@index([hostId])
+}
+
+model EventParticipant {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }

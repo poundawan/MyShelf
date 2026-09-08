@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MyShelf — échange de jeux et de livres",
-  description: "Échangez vos jeux de société, livres et autres objets près de chez vous.",
+  title: "MyShelf — échange de jeux et parties entre joueurs",
+  description:
+    "Échangez vos jeux de société et jeux de rôle, et organisez des parties près de chez vous.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,6 +1,7 @@
 # MyShelf
 
-Application web d'échange de jeux de société, livres (et autres objets) entre particuliers, en main propre.
+Application web pour joueurs de jeux de société et de jeux de rôle : échangez vos jeux entre
+particuliers, et organisez ou rejoignez des parties près de chez vous.
 
 ## Stack
 
@@ -23,22 +24,36 @@ L'app est disponible sur http://localhost:3000.
 
 ## Fonctionnement
 
-- **Inscription / connexion** par e-mail + mot de passe.
-- **Ajouter un objet** à son étagère (livre, jeu de société, autre) avec titre, catégorie, état, description, photo (URL).
-- **Parcourir / rechercher** les objets disponibles des autres membres, filtrables par catégorie et ville.
-- **Proposer un échange** : sur la page d'un objet, choisir un ou plusieurs de ses propres objets à proposer en troc.
-- Le propriétaire de l'objet ciblé peut **accepter / refuser** la proposition depuis `/trades`.
-- Une fois acceptée, les objets passent en statut "en échange" ; l'échange peut être **marqué comme terminé** (objets alors marqués "échangés") ou **annulé**.
+### Échange de jeux
+
+- **Ajouter un jeu** à son étagère (jeu de société, jeu de rôle, autre) avec titre, catégorie, état, description, photo (URL).
+- **Parcourir / rechercher** les jeux disponibles des autres membres sur `/items`, filtrables par catégorie et ville.
+- **Proposer un échange** : sur la page d'un jeu, choisir un ou plusieurs de ses propres jeux à proposer en troc.
+- Le propriétaire du jeu ciblé peut **accepter / refuser** la proposition depuis `/trades`.
+- Une fois acceptée, les jeux passent en statut "en échange" ; l'échange peut être **marqué comme terminé** (jeux alors marqués "échangés") ou **annulé**.
 - Chaque échange a un **fil de messages** simple pour s'organiser (lieu/heure de rencontre, etc.).
+
+### Événements (parties)
+
+- **Créer un événement** sur `/events/new` : titre, type de jeu (société / rôle / autre), jeu précis, niveau attendu, récurrence (ponctuel / hebdo / mensuel), ville, lieu, date/heure, nombre de places.
+- **Parcourir les prochaines parties** sur `/events`, filtrables par type de jeu et ville.
+- **S'inscrire / se désinscrire** d'un événement (dans la limite des places si un maximum est fixé).
+- L'organisateur peut **annuler** son événement.
+
+La page d'accueil (`/`) sert de hub : mise en avant des prochaines parties et des jeux récemment proposés.
 
 ## Modèle de données
 
-Voir `prisma/schema.prisma` : `User`, `Item`, `TradeProposal`, `TradeItem` (table de liaison objets ⇄ échange, avec le camp qui l'offre), `Message`.
+Voir `prisma/schema.prisma` :
+
+- `User`, `Item`, `TradeProposal`, `TradeItem` (table de liaison jeux ⇄ échange, avec le camp qui l'offre), `Message` — pour l'échange.
+- `Event`, `EventParticipant` — pour les parties organisées.
 
 ## Pistes d'évolution
 
 - Upload de photo réel (au lieu d'une URL) via un service de stockage.
-- Enrichissement automatique des fiches via des catalogues externes (Open Library / Google Books pour les livres, BoardGameGeek pour les jeux).
+- Enrichissement automatique des fiches via BoardGameGeek (jeux de société) ou une base de jeux de rôle.
 - Géolocalisation / distance plutôt qu'un simple filtre par nom de ville.
-- Notifications (e-mail ou push) sur nouvelle proposition, message, etc.
-- Système de réputation / avis après échange.
+- Notifications (e-mail ou push) sur nouvelle proposition, message, inscription à un événement, etc.
+- Système de réputation / avis après échange ou événement.
+- Génération automatique des occurrences pour les événements récurrents (actuellement informatif seulement).

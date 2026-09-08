@@ -1,12 +1,12 @@
 export const categoryLabels: Record<string, string> = {
-  BOOK: "Livre",
-  GAME: "Jeu de société",
+  BOARD_GAME: "Jeu de société",
+  ROLE_PLAYING: "Jeu de rôle",
   OTHER: "Autre",
 };
 
 export const categoryEmoji: Record<string, string> = {
-  BOOK: "📚",
-  GAME: "🎲",
+  BOARD_GAME: "🎲",
+  ROLE_PLAYING: "🐉",
   OTHER: "📦",
 };
 
@@ -23,4 +23,22 @@ export const tradeStatusLabels: Record<string, string> = {
   REJECTED: "Refusée",
   CANCELLED: "Annulée",
   COMPLETED: "Terminée",
+};
+
+export const eventLevelLabels: Record<string, string> = {
+  ALL_LEVELS: "Tous niveaux",
+  BEGINNER: "Débutant",
+  INTERMEDIATE: "Intermédiaire",
+  EXPERT: "Expert",
+};
+
+export const eventRecurrenceLabels: Record<string, string> = {
+  ONE_OFF: "Ponctuel",
+  WEEKLY: "Chaque semaine",
+  MONTHLY: "Chaque mois",
+};
+
+export const eventStatusLabels: Record<string, string> = {
+  ACTIVE: "Prévu",
+  CANCELLED: "Annulé",
 };

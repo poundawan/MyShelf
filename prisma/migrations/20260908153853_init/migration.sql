@@ -56,6 +56,36 @@ CREATE TABLE "Message" (
     CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "Event" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "hostId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "gameType" TEXT NOT NULL,
+    "gameName" TEXT,
+    "level" TEXT NOT NULL DEFAULT 'ALL_LEVELS',
+    "recurrence" TEXT NOT NULL DEFAULT 'ONE_OFF',
+    "city" TEXT NOT NULL,
+    "location" TEXT,
+    "startAt" DATETIME NOT NULL,
+    "maxParticipants" INTEGER,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Event_hostId_fkey" FOREIGN KEY ("hostId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "EventParticipant" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "eventId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "joinedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EventParticipant_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "EventParticipant_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -79,3 +109,21 @@ CREATE INDEX "TradeItem_itemId_idx" ON "TradeItem"("itemId");
 
 -- CreateIndex
 CREATE INDEX "Message_tradeProposalId_idx" ON "Message"("tradeProposalId");
+
+-- CreateIndex
+CREATE INDEX "Event_city_idx" ON "Event"("city");
+
+-- CreateIndex
+CREATE INDEX "Event_startAt_idx" ON "Event"("startAt");
+
+-- CreateIndex
+CREATE INDEX "Event_hostId_idx" ON "Event"("hostId");
+
+-- CreateIndex
+CREATE INDEX "EventParticipant_eventId_idx" ON "EventParticipant"("eventId");
+
+-- CreateIndex
+CREATE INDEX "EventParticipant_userId_idx" ON "EventParticipant"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EventParticipant_eventId_userId_key" ON "EventParticipant"("eventId", "userId");

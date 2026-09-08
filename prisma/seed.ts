@@ -24,31 +24,52 @@ async function main() {
         ownerId: alice.id,
         title: "Catan",
         description: "Jeu de base, 3-4 joueurs, boîte complète.",
-        category: "GAME",
+        category: "BOARD_GAME",
         condition: "GOOD",
       },
       {
         ownerId: alice.id,
-        title: "Le Seigneur des Anneaux — La Communauté de l'Anneau",
-        description: "Édition poche, un peu jaunie mais lisible.",
-        category: "BOOK",
+        title: "Donjons & Dragons — Manuel des joueurs (5e édition)",
+        description: "Édition VF, un peu usée mais complète.",
+        category: "ROLE_PLAYING",
         condition: "WORN",
       },
       {
         ownerId: bob.id,
         title: "7 Wonders",
         description: "2 extensions incluses (Leaders, Cities).",
-        category: "GAME",
+        category: "BOARD_GAME",
         condition: "LIKE_NEW",
       },
       {
         ownerId: bob.id,
-        title: "Dune",
-        description: "Frank Herbert, édition Robert Laffont.",
-        category: "BOOK",
+        title: "L'Appel de Cthulhu — Boîte de base",
+        description: "Livre de règles + écran de jeu + scénario d'introduction.",
+        category: "ROLE_PLAYING",
         condition: "GOOD",
       },
     ],
+  });
+
+  const nextTuesday = new Date();
+  nextTuesday.setDate(nextTuesday.getDate() + ((2 - nextTuesday.getDay() + 7) % 7 || 7));
+  nextTuesday.setHours(19, 30, 0, 0);
+
+  await prisma.event.create({
+    data: {
+      hostId: alice.id,
+      title: "Soirée Catan & co",
+      description: "Soirée jeux de société conviviale, débutants bienvenus !",
+      gameType: "BOARD_GAME",
+      gameName: "Catan",
+      level: "ALL_LEVELS",
+      recurrence: "WEEKLY",
+      city: "Lyon",
+      location: "Café des Jeux, 12 rue de la République",
+      startAt: nextTuesday,
+      maxParticipants: 6,
+      participants: { create: [{ userId: alice.id }, { userId: bob.id }] },
+    },
   });
 
   console.log("Seed terminé :", { alice: alice.email, bob: bob.email });

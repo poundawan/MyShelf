@@ -19,13 +19,13 @@ export default function NewItemPage() {
         <form action={formAction} className="flex flex-col gap-4">
           <div>
             <Label htmlFor="title">Titre</Label>
-            <Input id="title" name="title" placeholder="ex. Catan, Le Seigneur des Anneaux..." required />
+            <Input id="title" name="title" placeholder="ex. Catan, Warhammer 40k, D&D 5e..." required />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="category">Catégorie</Label>
-              <Select id="category" name="category" defaultValue="GAME" required>
+              <Select id="category" name="category" defaultValue="BOARD_GAME" required>
                 {Object.entries(categoryLabels).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
