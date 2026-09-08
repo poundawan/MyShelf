@@ -1,0 +1,117 @@
+// Prisma schema for MyShelf — échange de jeux de société, livres et autres objets
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ItemCategory {
+  BOOK
+  GAME
+  OTHER
+}
+
+enum ItemCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  WORN
+}
+
+enum ItemStatus {
+  AVAILABLE
+  IN_TRADE
+  TRADED
+}
+
+enum TradeStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum TradeSide {
+  FROM
+  TO
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  city         String
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+
+  items            Item[]
+  proposalsSent    TradeProposal[] @relation("ProposalsSent")
+  proposalsReceived TradeProposal[] @relation("ProposalsReceived")
+  messages         Message[]
+}
+
+model Item {
+  id          String        @id @default(cuid())
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    ItemCategory
+  condition   ItemCondition
+  photoUrl    String?
+  status      ItemStatus    @default(AVAILABLE)
+  createdAt   DateTime      @default(now())
+
+  tradeItems TradeItem[]
+
+  @@index([category])
+  @@index([ownerId])
+}
+
+model TradeProposal {
+  id         String      @id @default(cuid())
+  fromUserId String
+  fromUser   User        @relation("ProposalsSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User        @relation("ProposalsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  status     TradeStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  items    TradeItem[]
+  messages Message[]
+
+  @@index([fromUserId])
+  @@index([toUserId])
+}
+
+model TradeItem {
+  id              String        @id @default(cuid())
+  tradeProposalId String
+  tradeProposal   TradeProposal @relation(fields: [tradeProposalId], references: [id], onDelete: Cascade)
+  itemId          String
+  item            Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  offeredBy       TradeSide
+
+  @@index([tradeProposalId])
+  @@index([itemId])
+}
+
+model Message {
+  id              String        @id @default(cuid())
+  tradeProposalId String
+  tradeProposal   TradeProposal @relation(fields: [tradeProposalId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content         String
+  createdAt       DateTime      @default(now())
+
+  @@index([tradeProposalId])
+}
