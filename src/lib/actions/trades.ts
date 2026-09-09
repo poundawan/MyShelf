@@ -4,56 +4,84 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getOrCreateConversation } from "@/lib/actions/messages";
 import type { ActionState } from "@/lib/actions/auth";
 
-export async function proposeTradeAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+export async function proposeGameTradeAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const targetItemId = String(formData.get("targetItemId") ?? "");
-  const offeredItemIds = formData.getAll("offeredItemIds").map(String);
+  const targetCopyId = String(formData.get("targetCopyId") ?? "");
+  const offeredCopyIds = formData.getAll("offeredCopyIds").map(String);
+  const message = String(formData.get("message") ?? "").trim();
 
-  if (!targetItemId || offeredItemIds.length === 0) {
-    return { error: "Choisis au moins un de tes objets à proposer en échange" };
+  if (!targetCopyId || offeredCopyIds.length === 0) {
+    return { error: "Choisis au moins un de tes jeux à proposer en échange" };
   }
 
-  const targetItem = await prisma.item.findUnique({ where: { id: targetItemId } });
-  if (!targetItem || targetItem.status !== "AVAILABLE") {
-    return { error: "Cet objet n'est plus disponible" };
-  }
-  if (targetItem.ownerId === user.id) {
-    return { error: "Tu ne peux pas échanger avec toi-même" };
-  }
+  const targetCopy = await prisma.gameCopy.findUnique({ where: { id: targetCopyId } });
+  if (!targetCopy || targetCopy.status !== "ON_TABLE") return { error: "Cette copie n'est plus disponible" };
+  if (targetCopy.ownerId === user.id) return { error: "Tu ne peux pas échanger avec toi-même" };
 
-  const offeredItems = await prisma.item.findMany({
-    where: { id: { in: offeredItemIds }, ownerId: user.id, status: "AVAILABLE" },
-  });
-  if (offeredItems.length !== offeredItemIds.length) {
-    return { error: "Un des objets sélectionnés n'est plus disponible" };
-  }
+  const offered = await prisma.gameCopy.findMany({ where: { id: { in: offeredCopyIds }, ownerId: user.id, status: "ON_TABLE" } });
+  if (offered.length !== offeredCopyIds.length) return { error: "Un des jeux sélectionnés n'est plus disponible" };
 
-  const proposal = await prisma.tradeProposal.create({
+  const conversation = await getOrCreateConversation(user.id, targetCopy.ownerId);
+
+  const trade = await prisma.tradeProposal.create({
     data: {
-      fromUserId: user.id,
-      toUserId: targetItem.ownerId,
-      items: {
-        create: [
-          { itemId: targetItem.id, offeredBy: "TO" },
-          ...offeredItems.map((item) => ({ itemId: item.id, offeredBy: "FROM" as const })),
-        ],
-      },
+      kind: "GAME", fromUserId: user.id, toUserId: targetCopy.ownerId, conversationId: conversation.id,
+      items: { create: [
+        { gameCopyId: targetCopy.id, offeredBy: "TO" },
+        ...offered.map((c) => ({ gameCopyId: c.id, offeredBy: "FROM" as const })),
+      ]},
     },
   });
 
+  if (message) {
+    await prisma.message.create({ data: { conversationId: conversation.id, senderId: user.id, content: message } });
+  }
+
   revalidatePath("/trades");
-  redirect(`/trades/${proposal.id}`);
+  redirect(`/trades/${trade.id}`);
+}
+
+export async function requestCardAction(cardCopyId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const cardCopy = await prisma.cardCopy.findUnique({ where: { id: cardCopyId } });
+  if (!cardCopy || cardCopy.status !== "ON_TABLE") throw new Error("Carte indisponible");
+  if (cardCopy.ownerId === user.id) throw new Error("Action non autorisée");
+
+  const conversation = await getOrCreateConversation(user.id, cardCopy.ownerId);
+
+  const trade = await prisma.tradeProposal.create({
+    data: {
+      kind: "CARD", fromUserId: user.id, toUserId: cardCopy.ownerId, conversationId: conversation.id,
+      items: { create: [{ cardCopyId: cardCopy.id, offeredBy: "TO" }] },
+    },
+  });
+
+  revalidatePath("/cards");
+  redirect(`/trades/${trade.id}`);
+}
+
+async function itemsOf(tradeId: string) {
+  return prisma.tradeItem.findMany({ where: { tradeProposalId: tradeId } });
+}
+
+async function setCopiesStatus(items: Awaited<ReturnType<typeof itemsOf>>, status: "AVAILABLE_ON_TABLE" | "IN_TRADE" | "TRADED") {
+  const gameCopyIds = items.map((i) => i.gameCopyId).filter((v): v is string => !!v);
+  const cardCopyIds = items.map((i) => i.cardCopyId).filter((v): v is string => !!v);
+  const value = status === "AVAILABLE_ON_TABLE" ? "ON_TABLE" : status;
+  if (gameCopyIds.length) await prisma.gameCopy.updateMany({ where: { id: { in: gameCopyIds } }, data: { status: value } });
+  if (cardCopyIds.length) await prisma.cardCopy.updateMany({ where: { id: { in: cardCopyIds } }, data: { status: value } });
 }
 
 async function assertParticipant(tradeId: string, userId: string) {
   const trade = await prisma.tradeProposal.findUnique({ where: { id: tradeId } });
-  if (!trade || (trade.fromUserId !== userId && trade.toUserId !== userId)) {
-    throw new Error("Échange introuvable");
-  }
+  if (!trade || (trade.fromUserId !== userId && trade.toUserId !== userId)) throw new Error("Échange introuvable");
   return trade;
 }
 
@@ -62,24 +90,10 @@ export async function respondToTradeAction(tradeId: string, accept: boolean) {
   if (!user) redirect("/login");
 
   const trade = await assertParticipant(tradeId, user.id);
-  if (trade.toUserId !== user.id || trade.status !== "PENDING") {
-    throw new Error("Action non autorisée");
-  }
+  if (trade.toUserId !== user.id || trade.status !== "PENDING") throw new Error("Action non autorisée");
 
-  await prisma.$transaction(async (tx) => {
-    await tx.tradeProposal.update({
-      where: { id: tradeId },
-      data: { status: accept ? "ACCEPTED" : "REJECTED" },
-    });
-
-    if (accept) {
-      const tradeItems = await tx.tradeItem.findMany({ where: { tradeProposalId: tradeId } });
-      await tx.item.updateMany({
-        where: { id: { in: tradeItems.map((ti) => ti.itemId) } },
-        data: { status: "IN_TRADE" },
-      });
-    }
-  });
+  await prisma.tradeProposal.update({ where: { id: tradeId }, data: { status: accept ? "ACCEPTED" : "REJECTED" } });
+  if (accept) await setCopiesStatus(await itemsOf(tradeId), "IN_TRADE");
 
   revalidatePath(`/trades/${tradeId}`);
   revalidatePath("/trades");
@@ -90,21 +104,10 @@ export async function cancelTradeAction(tradeId: string) {
   if (!user) redirect("/login");
 
   const trade = await assertParticipant(tradeId, user.id);
-  if (!["PENDING", "ACCEPTED"].includes(trade.status)) {
-    throw new Error("Action non autorisée");
-  }
+  if (!["PENDING", "ACCEPTED"].includes(trade.status)) throw new Error("Action non autorisée");
 
-  await prisma.$transaction(async (tx) => {
-    await tx.tradeProposal.update({ where: { id: tradeId }, data: { status: "CANCELLED" } });
-
-    if (trade.status === "ACCEPTED") {
-      const tradeItems = await tx.tradeItem.findMany({ where: { tradeProposalId: tradeId } });
-      await tx.item.updateMany({
-        where: { id: { in: tradeItems.map((ti) => ti.itemId) } },
-        data: { status: "AVAILABLE" },
-      });
-    }
-  });
+  await prisma.tradeProposal.update({ where: { id: tradeId }, data: { status: "CANCELLED" } });
+  if (trade.status === "ACCEPTED") await setCopiesStatus(await itemsOf(tradeId), "AVAILABLE_ON_TABLE");
 
   revalidatePath(`/trades/${tradeId}`);
   revalidatePath("/trades");
@@ -115,37 +118,12 @@ export async function completeTradeAction(tradeId: string) {
   if (!user) redirect("/login");
 
   const trade = await assertParticipant(tradeId, user.id);
-  if (trade.status !== "ACCEPTED") {
-    throw new Error("Action non autorisée");
-  }
+  if (trade.status !== "ACCEPTED") throw new Error("Action non autorisée");
 
-  await prisma.$transaction(async (tx) => {
-    await tx.tradeProposal.update({ where: { id: tradeId }, data: { status: "COMPLETED" } });
-    const tradeItems = await tx.tradeItem.findMany({ where: { tradeProposalId: tradeId } });
-    await tx.item.updateMany({
-      where: { id: { in: tradeItems.map((ti) => ti.itemId) } },
-      data: { status: "TRADED" },
-    });
-  });
+  await prisma.tradeProposal.update({ where: { id: tradeId }, data: { status: "COMPLETED" } });
+  await setCopiesStatus(await itemsOf(tradeId), "TRADED");
 
   revalidatePath(`/trades/${tradeId}`);
   revalidatePath("/trades");
   revalidatePath("/");
-}
-
-export async function sendMessageAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const tradeId = String(formData.get("tradeId") ?? "");
-  const content = String(formData.get("content") ?? "").trim();
-  if (!content) return { error: "Message vide" };
-
-  await assertParticipant(tradeId, user.id);
-
-  await prisma.message.create({
-    data: { tradeProposalId: tradeId, senderId: user.id, content: content.slice(0, 2000) },
-  });
-
-  revalidatePath(`/trades/${tradeId}`);
 }

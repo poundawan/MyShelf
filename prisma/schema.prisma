@@ -1,4 +1,5 @@
-// Prisma schema for MyShelf — échange de jeux de société / jeux de rôle et organisation de parties
+// Prisma schema for MyShelf — plateforme d'échange ludique
+// Jeux de société / jeux de rôle / cartes à collectionner, clubs, tables (événements)
 
 generator client {
   provider = "prisma-client"
@@ -10,10 +11,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ItemCategory {
+enum GameCategory {
   BOARD_GAME
   ROLE_PLAYING
   OTHER
+}
+
+enum PlayerLevel {
+  BEGINNER
+  INTERMEDIATE
+  CONFIRMED
 }
 
 enum ItemCondition {
@@ -23,10 +30,35 @@ enum ItemCondition {
   WORN
 }
 
-enum ItemStatus {
-  AVAILABLE
+enum CopyStatus {
+  ON_TABLE
+  KEPT_WARM
   IN_TRADE
   TRADED
+}
+
+enum CardRarity {
+  COMMON
+  RARE
+  FOIL
+  MYTHIC
+}
+
+enum EventType {
+  BOARD_GAME
+  ROLE_PLAYING
+  TCG
+  DISCOVERY
+}
+
+enum EventStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum TradeKind {
+  GAME
+  CARD
 }
 
 enum TradeStatus {
@@ -42,117 +74,150 @@ enum TradeSide {
   TO
 }
 
-enum EventLevel {
-  ALL_LEVELS
-  BEGINNER
-  INTERMEDIATE
-  EXPERT
-}
-
-enum EventRecurrence {
-  ONE_OFF
-  WEEKLY
-  MONTHLY
-}
-
-enum EventStatus {
-  ACTIVE
-  CANCELLED
-}
-
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  city         String
-  avatarUrl    String?
-  createdAt    DateTime @default(now())
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String
+  city             String
+  avatarUrl        String?
+  bio              String?
+  verified         Boolean     @default(false)
+  experienceLevel  PlayerLevel @default(INTERMEDIATE)
+  createdAt        DateTime @default(now())
 
-  items             Item[]
-  proposalsSent     TradeProposal[]    @relation("ProposalsSent")
-  proposalsReceived TradeProposal[]    @relation("ProposalsReceived")
-  messages          Message[]
-  hostedEvents      Event[]
+  gameCopies         GameCopy[]
+  cardCopies         CardCopy[]
+  cardWants          CardWant[]
+  clubMemberships    ClubMembership[]
+  hostedEvents       Event[]
   eventParticipations EventParticipant[]
+  tradesSent         TradeProposal[] @relation("TradesSent")
+  tradesReceived     TradeProposal[] @relation("TradesReceived")
+  reviewsGiven       Review[] @relation("ReviewsGiven")
+  reviewsReceived    Review[] @relation("ReviewsReceived")
+  conversationsA     Conversation[] @relation("ConversationUserA")
+  conversationsB     Conversation[] @relation("ConversationUserB")
+  messages           Message[]
 }
 
-model Item {
-  id          String        @id @default(cuid())
-  ownerId     String
-  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+model Game {
+  id          String       @id @default(cuid())
   title       String
+  category    GameCategory
+  level       PlayerLevel? // difficulté du jeu
+  minPlayers  Int?
+  maxPlayers  Int?
+  durationMin Int?
+  minAge      Int?
   description String?
-  category    ItemCategory
-  condition   ItemCondition
   photoUrl    String?
-  status      ItemStatus    @default(AVAILABLE)
-  createdAt   DateTime      @default(now())
+  createdAt   DateTime     @default(now())
+
+  copies  GameCopy[]
+  reviews Review[]
+
+  @@index([category])
+}
+
+model GameCopy {
+  id        String         @id @default(cuid())
+  gameId    String
+  game      Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  ownerId   String
+  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  condition ItemCondition
+  status    CopyStatus     @default(ON_TABLE)
+  createdAt DateTime       @default(now())
 
   tradeItems TradeItem[]
 
-  @@index([category])
+  @@index([gameId])
   @@index([ownerId])
 }
 
-model TradeProposal {
-  id         String      @id @default(cuid())
-  fromUserId String
-  fromUser   User        @relation("ProposalsSent", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUserId   String
-  toUser     User        @relation("ProposalsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
-  status     TradeStatus @default(PENDING)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+model Card {
+  id        String     @id @default(cuid())
+  name      String
+  setName   String?
+  rarity    CardRarity @default(COMMON)
+  photoUrl  String?
+  createdAt DateTime   @default(now())
 
-  items    TradeItem[]
-  messages Message[]
-
-  @@index([fromUserId])
-  @@index([toUserId])
+  copies CardCopy[]
+  wants  CardWant[]
 }
 
-model TradeItem {
-  id              String        @id @default(cuid())
-  tradeProposalId String
-  tradeProposal   TradeProposal @relation(fields: [tradeProposalId], references: [id], onDelete: Cascade)
-  itemId          String
-  item            Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  offeredBy       TradeSide
+model CardCopy {
+  id        String   @id @default(cuid())
+  cardId    String
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  status    CopyStatus @default(ON_TABLE)
+  createdAt DateTime @default(now())
 
-  @@index([tradeProposalId])
-  @@index([itemId])
+  tradeItems TradeItem[]
+
+  @@index([cardId])
+  @@index([ownerId])
 }
 
-model Message {
-  id              String        @id @default(cuid())
-  tradeProposalId String
-  tradeProposal   TradeProposal @relation(fields: [tradeProposalId], references: [id], onDelete: Cascade)
-  senderId        String
-  sender          User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  content         String
-  createdAt       DateTime      @default(now())
+model CardWant {
+  id        String   @id @default(cuid())
+  cardId    String
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
-  @@index([tradeProposalId])
+  @@unique([cardId, userId])
+  @@index([userId])
+}
+
+model Club {
+  id          String   @id @default(cuid())
+  name        String
+  city        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  memberships ClubMembership[]
+  events      Event[]
+}
+
+model ClubMembership {
+  id       String   @id @default(cuid())
+  clubId   String
+  club     Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([clubId, userId])
+  @@index([userId])
 }
 
 model Event {
-  id              String          @id @default(cuid())
+  id              String      @id @default(cuid())
   hostId          String
-  host            User            @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  host            User        @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  clubId          String?
+  club            Club?       @relation(fields: [clubId], references: [id], onDelete: SetNull)
   title           String
+  type            EventType
+  level           PlayerLevel @default(BEGINNER)
   description     String?
-  gameType        ItemCategory
-  gameName        String?
-  level           EventLevel      @default(ALL_LEVELS)
-  recurrence      EventRecurrence @default(ONE_OFF)
+  bringList       String?
   city            String
   location        String?
+  photoUrl        String?
   startAt         DateTime
+  endAt           DateTime?
   maxParticipants Int?
-  status          EventStatus     @default(ACTIVE)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  status          EventStatus @default(ACTIVE)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   participants EventParticipant[]
 
@@ -162,14 +227,89 @@ model Event {
 }
 
 model EventParticipant {
-  id        String   @id @default(cuid())
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  joinedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  eventId  String
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
 
   @@unique([eventId, userId])
   @@index([eventId])
   @@index([userId])
+}
+
+model TradeProposal {
+  id             String      @id @default(cuid())
+  kind           TradeKind
+  fromUserId     String
+  fromUser       User        @relation("TradesSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId       String
+  toUser         User        @relation("TradesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  status         TradeStatus @default(PENDING)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  items TradeItem[]
+
+  @@index([fromUserId])
+  @@index([toUserId])
+}
+
+model TradeItem {
+  id              String        @id @default(cuid())
+  tradeProposalId String
+  tradeProposal   TradeProposal @relation(fields: [tradeProposalId], references: [id], onDelete: Cascade)
+  gameCopyId      String?
+  gameCopy        GameCopy?     @relation(fields: [gameCopyId], references: [id], onDelete: Cascade)
+  cardCopyId      String?
+  cardCopy        CardCopy?     @relation(fields: [cardCopyId], references: [id], onDelete: Cascade)
+  offeredBy       TradeSide
+
+  @@index([tradeProposalId])
+}
+
+model Conversation {
+  id         String   @id @default(cuid())
+  userAId    String
+  userA      User     @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId    String
+  userB      User     @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  messages Message[]
+  trades   TradeProposal[]
+
+  @@unique([userAId, userBId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  fromUserId String
+  fromUser   User     @relation("ReviewsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User     @relation("ReviewsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  gameId     String?
+  game       Game?    @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  context    String   // ex. "Échange · Trois Comtés", "Cartes · Cendres du Nord"
+  rating     Int
+  comment    String
+  createdAt  DateTime @default(now())
+
+  @@index([toUserId])
 }

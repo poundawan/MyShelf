@@ -10,10 +10,9 @@ export default function RegisterPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col px-4 py-16 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Créer un compte</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Rejoins la communauté et commence à échanger.
-      </p>
+      <div className="text-xs font-bold uppercase tracking-widest text-gold">Nouveau joueur</div>
+      <h1 className="mt-1 font-display text-3xl text-cream">Créer un compte</h1>
+      <p className="mt-2 text-sm text-ink-soft">Rejoins la table et commence à échanger.</p>
 
       <Card className="mt-8 p-6">
         <form action={formAction} className="flex flex-col gap-4">
@@ -23,7 +22,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <Label htmlFor="city">Ville</Label>
-            <Input id="city" name="city" placeholder="ex. Lyon" autoComplete="address-level2" required />
+            <Input id="city" name="city" placeholder="ex. Lyon 7e" autoComplete="address-level2" required />
           </div>
           <div>
             <Label htmlFor="email">E-mail</Label>
@@ -47,9 +46,9 @@ export default function RegisterPage() {
         </form>
       </Card>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-center text-sm text-ink-soft">
         Déjà un compte ?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link href="/login" className="font-bold text-gold hover:underline">
           Se connecter
         </Link>
       </p>

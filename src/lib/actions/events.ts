@@ -13,36 +13,25 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
 
   const parsed = eventSchema.safeParse({
     title: formData.get("title"),
-    description: formData.get("description"),
-    gameType: formData.get("gameType"),
-    gameName: formData.get("gameName"),
+    type: formData.get("type"),
     level: formData.get("level"),
-    recurrence: formData.get("recurrence"),
+    description: formData.get("description"),
+    bringList: formData.get("bringList"),
     city: formData.get("city"),
     location: formData.get("location"),
     startAt: formData.get("startAt"),
+    endAt: formData.get("endAt"),
     maxParticipants: formData.get("maxParticipants"),
   });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
 
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
-  }
-
-  const { title, description, gameType, gameName, level, recurrence, city, location, startAt, maxParticipants } =
-    parsed.data;
+  const { title, type, level, description, bringList, city, location, startAt, endAt, maxParticipants } = parsed.data;
 
   const event = await prisma.event.create({
     data: {
-      hostId: user.id,
-      title,
-      description: description || null,
-      gameType,
-      gameName: gameName || null,
-      level,
-      recurrence,
-      city,
-      location: location || null,
-      startAt,
+      hostId: user.id, title, type, level,
+      description: description || null, bringList: bringList || null,
+      city, location: location || null, startAt, endAt: endAt ?? null,
       maxParticipants: maxParticipants ?? null,
       participants: { create: [{ userId: user.id }] },
     },
@@ -53,11 +42,8 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
   redirect(`/events/${event.id}`);
 }
 
-async function assertActiveEvent(eventId: string) {
-  const event = await prisma.event.findUnique({
-    include: { participants: true },
-    where: { id: eventId },
-  });
+async function assertEvent(eventId: string) {
+  const event = await prisma.event.findUnique({ where: { id: eventId }, include: { participants: true } });
   if (!event) throw new Error("Événement introuvable");
   return event;
 }
@@ -66,16 +52,13 @@ export async function joinEventAction(eventId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const event = await assertActiveEvent(eventId);
-  if (event.status !== "ACTIVE") throw new Error("Cet événement n'est plus ouvert aux inscriptions");
-  if (event.maxParticipants && event.participants.length >= event.maxParticipants) {
-    throw new Error("Cet événement est complet");
-  }
+  const event = await assertEvent(eventId);
+  if (event.status !== "ACTIVE") throw new Error("Cet événement n'est plus ouvert");
+  if (event.maxParticipants && event.participants.length >= event.maxParticipants) throw new Error("Complet");
 
   await prisma.eventParticipant.upsert({
     where: { eventId_userId: { eventId, userId: user.id } },
-    update: {},
-    create: { eventId, userId: user.id },
+    update: {}, create: { eventId, userId: user.id },
   });
 
   revalidatePath(`/events/${eventId}`);
@@ -87,10 +70,8 @@ export async function leaveEventAction(eventId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const event = await assertActiveEvent(eventId);
-  if (event.hostId === user.id) {
-    throw new Error("L'organisateur ne peut pas se désinscrire — annule l'événement si besoin");
-  }
+  const event = await assertEvent(eventId);
+  if (event.hostId === user.id) throw new Error("L'organisateur ne peut pas se désinscrire");
 
   await prisma.eventParticipant.deleteMany({ where: { eventId, userId: user.id } });
 
@@ -103,7 +84,7 @@ export async function cancelEventAction(eventId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const event = await assertActiveEvent(eventId);
+  const event = await assertEvent(eventId);
   if (event.hostId !== user.id) throw new Error("Action non autorisée");
 
   await prisma.event.update({ where: { id: eventId }, data: { status: "CANCELLED" } });

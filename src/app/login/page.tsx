@@ -10,8 +10,9 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col px-4 py-16 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Connexion</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Content de te revoir.</p>
+      <div className="text-xs font-bold uppercase tracking-widest text-gold">Bienvenue</div>
+      <h1 className="mt-1 font-display text-3xl text-cream">Connexion</h1>
+      <p className="mt-2 text-sm text-ink-soft">Content de te revoir à la table.</p>
 
       <Card className="mt-8 p-6">
         <form action={formAction} className="flex flex-col gap-4">
@@ -30,9 +31,9 @@ export default function LoginPage() {
         </form>
       </Card>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-center text-sm text-ink-soft">
         Pas encore de compte ?{" "}
-        <Link href="/register" className="font-medium text-primary hover:underline">
+        <Link href="/register" className="font-bold text-gold hover:underline">
           Créer un compte
         </Link>
       </p>

@@ -1,31 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bevan, Karla } from "next/font/google";
 import { Nav } from "@/components/nav";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const bevan = Bevan({
+  variable: "--font-bevan",
   subsets: ["latin"],
+  weight: "400",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const karla = Karla({
+  variable: "--font-karla",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
-  title: "MyShelf — échange de jeux et parties entre joueurs",
+  title: "MyShelf — échange ludique entre joueurs",
   description:
-    "Échangez vos jeux de société et jeux de rôle, et organisez des parties près de chez vous.",
+    "Échange tes jeux de société, jeux de rôle et cartes, rejoins un club, ouvre une table.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="fr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+    <html lang="fr" className={`${bevan.variable} ${karla.variable} h-full`}>
+      <body className="min-h-full flex flex-col bg-bg text-ink font-sans antialiased">
         <Nav />
         <main className="flex-1">{children}</main>
       </body>

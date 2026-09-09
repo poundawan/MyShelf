@@ -1,14 +1,14 @@
 # MyShelf
 
-Application web pour joueurs de jeux de société et de jeux de rôle : échangez vos jeux entre
-particuliers, et organisez ou rejoignez des parties près de chez vous.
+Plateforme d'échange ludique : jeux de société, jeux de rôle et cartes à collectionner entre
+joueurs, organisation de tables (parties) et clubs.
 
 ## Stack
 
 - [Next.js 16](https://nextjs.org) (App Router, Server Actions, Turbopack) + React 19 + TypeScript
-- Tailwind CSS v4 pour le design
+- Tailwind CSS v4 pour le design — palette "table de jeu" (vert plateau, moutarde, terracotta), polices Bevan (titres) + Karla (texte)
 - Prisma + SQLite pour la persistance (facilement remplaçable par Postgres en prod)
-- Authentification maison (session cookie signé JWT via `jose` + `bcryptjs`) — pas de dépendance à un fournisseur d'auth externe
+- Authentification maison (session cookie signé JWT via `jose` + `bcryptjs`)
 
 ## Démarrer en local
 
@@ -16,7 +16,7 @@ particuliers, et organisez ou rejoignez des parties près de chez vous.
 npm install
 cp .env.example .env   # puis adapte DATABASE_URL avec un chemin absolu vers ce dossier
 npx prisma migrate deploy
-npx prisma db seed     # optionnel : crée deux comptes de démo (alice@example.com / bob@example.com, mdp: password123)
+npx prisma db seed     # comptes de démo : chloe@example.com (et marius/lea/bastien/sofiane/amandine@example.com), mdp: password123
 npm run dev
 ```
 
@@ -24,36 +24,68 @@ L'app est disponible sur http://localhost:3000.
 
 ## Fonctionnement
 
-### Échange de jeux
+### Ma ludothèque (`/shelf`)
 
-- **Ajouter un jeu** à son étagère (jeu de société, jeu de rôle, autre) avec titre, catégorie, état, description, photo (URL).
-- **Parcourir / rechercher** les jeux disponibles des autres membres sur `/items`, filtrables par catégorie et ville.
-- **Proposer un échange** : sur la page d'un jeu, choisir un ou plusieurs de ses propres jeux à proposer en troc.
-- Le propriétaire du jeu ciblé peut **accepter / refuser** la proposition depuis `/trades`.
-- Une fois acceptée, les jeux passent en statut "en échange" ; l'échange peut être **marqué comme terminé** (jeux alors marqués "échangés") ou **annulé**.
-- Chaque échange a un **fil de messages** simple pour s'organiser (lieu/heure de rencontre, etc.).
+Chaque jeu ajouté rejoint un **catalogue partagé** (`Game`) : si le titre existe déjà, ta copie
+(`GameCopy`) vient s'ajouter à celles des autres joueurs. Bascule chaque copie entre **sur la
+table** (disponible à l'échange) et **gardée au chaud** (non disponible). La fiche jeu (`/games/[id]`)
+liste les autres joueurs qui possèdent une copie disponible, avec un bouton **Échanger**.
 
-### Événements (parties)
+### Échanges (`/trades`)
 
-- **Créer un événement** sur `/events/new` : titre, type de jeu (société / rôle / autre), jeu précis, niveau attendu, récurrence (ponctuel / hebdo / mensuel), ville, lieu, date/heure, nombre de places.
-- **Parcourir les prochaines parties** sur `/events`, filtrables par type de jeu et ville.
-- **S'inscrire / se désinscrire** d'un événement (dans la limite des places si un maximum est fixé).
-- L'organisateur peut **annuler** son événement.
+Un échange se propose en 2 étapes (choix de ton jeu à mettre sur la table, puis un message) et
+crée une conversation avec l'autre joueur. Le destinataire accepte/refuse ; une fois accepté,
+l'échange peut être marqué terminé (les copies passent alors en "échangées").
 
-La page d'accueil (`/`) sert de hub : mise en avant des prochaines parties et des jeux récemment proposés.
+### Cartes (`/cards`)
+
+Système séparé pour les cartes à collectionner : ajoute tes **doubles** (disponibles à l'échange)
+ou les cartes que tu **cherches**. "Demander" une carte crée un échange de type carte, à négocier
+par message.
+
+### Tables (`/events`)
+
+Organise une partie (jeu de société, jeu de rôle, TCG ou découverte) avec niveau attendu, lieu,
+créneau, nombre de places et liste "à apporter". Aperçu en direct de la carte pendant la saisie.
+Les autres joueurs réservent une place ; l'hôte peut annuler.
+
+### Recherche (`/search`)
+
+Recherche unifiée à travers tables, jeux, cartes et clubs, avec filtres par type, niveau et
+distance.
+
+### Messages (`/messages`)
+
+Conversations par binôme de joueurs, alimentées par les échanges ou démarrées librement (bouton
+"Écrire" sur un profil ou une table).
+
+### Profil (`/profile/[id]`)
+
+Stats (note moyenne, échanges, tables ouvertes), avis reçus, "jetons" (badges calculés :
+identité vérifiée, nombre d'échanges, hôtesse de table, accueil des débutants) et progression de
+niveau.
 
 ## Modèle de données
 
 Voir `prisma/schema.prisma` :
 
-- `User`, `Item`, `TradeProposal`, `TradeItem` (table de liaison jeux ⇄ échange, avec le camp qui l'offre), `Message` — pour l'échange.
-- `Event`, `EventParticipant` — pour les parties organisées.
+- `User` (avec `experienceLevel`, `verified`)
+- `Game` (catalogue partagé) + `GameCopy` (copie possédée par un joueur)
+- `Card` (catalogue) + `CardCopy` (double possédé) + `CardWant` (carte recherchée)
+- `Club` + `ClubMembership`
+- `Event` (table) + `EventParticipant`
+- `TradeProposal` + `TradeItem` (jeu ou carte, camp qui l'offre)
+- `Conversation` + `Message`
+- `Review` (avis, contexte libre + note)
+
+Les distances affichées ("1,2 km", "900 m"...) sont **factices mais stables** (dérivées de l'id
+de l'objet) — il n'y a pas de vraie géolocalisation dans cette version, ni de génération
+d'occurrences pour les tables récurrentes (champ informatif seulement).
 
 ## Pistes d'évolution
 
-- Upload de photo réel (au lieu d'une URL) via un service de stockage.
-- Enrichissement automatique des fiches via BoardGameGeek (jeux de société) ou une base de jeux de rôle.
-- Géolocalisation / distance plutôt qu'un simple filtre par nom de ville.
-- Notifications (e-mail ou push) sur nouvelle proposition, message, inscription à un événement, etc.
-- Système de réputation / avis après échange ou événement.
-- Génération automatique des occurrences pour les événements récurrents (actuellement informatif seulement).
+- Vraie géolocalisation (adresse ou position) à la place des distances factices.
+- Upload de photo réel (au lieu d'une URL).
+- Écriture d'avis depuis l'app (actuellement affichés en lecture seule, issus du seed).
+- Page dédiée par club (actuellement teaser sur l'accueil + résultat de recherche uniquement).
+- Notifications (e-mail ou push).
