@@ -2,9 +2,9 @@
 // Jeux de société / jeux de rôle / cartes à collectionner, clubs, tables (événements)
 
 generator client {
-  provider      = "prisma-client"
-  output        = "../src/generated/prisma"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
 }
 
 datasource db {

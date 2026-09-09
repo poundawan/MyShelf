@@ -10,12 +10,14 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^6.19.3",
     "@prisma/client": "^6",
     "bcryptjs": "^2",
     "clsx": "^2",
     "jose": "^5",
     "lucide-react": "^0.460.0",
     "next": "16.3.4",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwind-merge": "^2",
@@ -25,6 +27,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
