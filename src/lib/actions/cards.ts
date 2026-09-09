@@ -21,7 +21,7 @@ export async function addCardAction(_prevState: ActionState, formData: FormData)
 
   const { name, setName, rarity, mode } = parsed.data;
 
-  let card = await prisma.card.findFirst({ where: { name: { equals: name.trim() } } });
+  let card = await prisma.card.findFirst({ where: { name: { equals: name.trim(), mode: "insensitive" } } });
   if (!card) {
     card = await prisma.card.create({ data: { name: name.trim(), setName: setName || null, rarity } });
   }

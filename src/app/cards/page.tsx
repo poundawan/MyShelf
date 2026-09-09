@@ -23,7 +23,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
     where: {
       status: "ON_TABLE",
       ...(isMine ? { ownerId: user.id } : { ownerId: { not: user.id } }),
-      ...(q ? { card: { OR: [{ name: { contains: q } }, { setName: { contains: q } }] } } : {}),
+      ...(q ? { card: { OR: [{ name: { contains: q, mode: "insensitive" } }, { setName: { contains: q, mode: "insensitive" } }] } } : {}),
     },
     include: { card: true, owner: true },
     orderBy: { createdAt: "desc" },

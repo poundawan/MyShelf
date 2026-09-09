@@ -28,7 +28,7 @@ export async function addGameCopyAction(_prevState: ActionState, formData: FormD
 
   const { title, category, condition, minPlayers, maxPlayers, durationMin, description, photoUrl } = parsed.data;
 
-  let game = await prisma.game.findFirst({ where: { title: { equals: title.trim() } } });
+  let game = await prisma.game.findFirst({ where: { title: { equals: title.trim(), mode: "insensitive" } } });
   if (!game) {
     game = await prisma.game.create({
       data: {

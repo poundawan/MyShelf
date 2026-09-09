@@ -7,18 +7,33 @@ joueurs, organisation de tables (parties) et clubs.
 
 - [Next.js 16](https://nextjs.org) (App Router, Server Actions, Turbopack) + React 19 + TypeScript
 - Tailwind CSS v4 pour le design — palette "table de jeu" (vert plateau, moutarde, terracotta), polices Bevan (titres) + Karla (texte)
-- Prisma + SQLite pour la persistance (facilement remplaçable par Postgres en prod)
+- Prisma + PostgreSQL (ex. [Supabase](https://supabase.com)) pour la persistance
 - Authentification maison (session cookie signé JWT via `jose` + `bcryptjs`)
 
 ## Démarrer en local
 
+Il faut une base Postgres accessible (un projet [Supabase](https://supabase.com) gratuit convient
+très bien, ou une instance Postgres locale).
+
 ```bash
 npm install
-cp .env.example .env   # puis adapte DATABASE_URL avec un chemin absolu vers ce dossier
-npx prisma migrate deploy
+cp .env.example .env   # renseigne DATABASE_URL / DIRECT_URL (voir Supabase ci-dessous) et AUTH_SECRET
+npx prisma migrate dev --name init   # première fois : crée les tables
 npx prisma db seed     # comptes de démo : chloe@example.com (et marius/lea/bastien/sofiane/amandine@example.com), mdp: password123
 npm run dev
 ```
+
+### Récupérer les identifiants Supabase
+
+Dans ton projet Supabase → **Project Settings → Database → Connection string** :
+- **Transaction pooler** (port `6543`, avec `?pgbouncer=true`) → `DATABASE_URL` (utilisée par l'app)
+- **Direct connection** (port `5432`) → `DIRECT_URL` (utilisée uniquement par les migrations Prisma — le pooler ne supporte pas les prepared statements nécessaires aux migrations)
+
+### Déployer sur Vercel
+
+1. Importe le dépôt GitHub dans Vercel (framework détecté automatiquement : Next.js).
+2. Dans les variables d'environnement du projet Vercel, ajoute `DATABASE_URL`, `DIRECT_URL` et `AUTH_SECRET` (une valeur forte et différente de celle du `.env` local).
+3. Déploie. Les migrations doivent être appliquées à la base Supabase avant ou pendant le premier déploiement — depuis ta machine : `npx prisma migrate deploy` avec les mêmes variables d'environnement pointées vers Supabase.
 
 L'app est disponible sur http://localhost:3000.
 
