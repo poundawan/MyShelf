@@ -93,3 +93,22 @@ export const eventSchema = z.object({
       return n;
     }),
 });
+
+/**
+ * Même formulaire que `eventSchema`, sans l'exigence « dans le futur ».
+ *
+ * À la création, une table dans le passé est forcément une erreur de saisie.
+ * À la modification, non : l'organisateur corrige souvent un lieu ou une
+ * description alors que la partie vient de commencer, et lui refuser
+ * l'enregistrement à cause de la date serait absurde.
+ */
+export const eventUpdateSchema = eventSchema.extend({
+  startAt: z
+    .string()
+    .min(1, "Indique une date et une heure")
+    .transform((value, ctx) => {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) { ctx.addIssue({ code: "custom", message: "Date invalide" }); return z.NEVER; }
+      return date;
+    }),
+});

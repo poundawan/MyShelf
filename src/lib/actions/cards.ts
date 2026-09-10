@@ -38,3 +38,31 @@ export async function addCardAction(_prevState: ActionState, formData: FormData)
   revalidatePath("/cards");
   redirect("/cards");
 }
+
+export async function deleteCardCopyAction(cardCopyId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const copy = await prisma.cardCopy.findUnique({ where: { id: cardCopyId } });
+  if (!copy || copy.ownerId !== user.id) throw new Error("Carte introuvable");
+
+  // Même règle que pour les jeux : on ne retire pas une carte déjà promise.
+  const engagee = await prisma.tradeItem.findFirst({
+    where: { cardCopyId, tradeProposal: { status: { in: ["PENDING", "ACCEPTED"] } } },
+  });
+  if (engagee) throw new Error("Cette carte est engagée dans un échange en cours");
+
+  await prisma.cardCopy.delete({ where: { id: cardCopyId } });
+  revalidatePath("/cards");
+}
+
+export async function deleteCardWantAction(cardWantId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const want = await prisma.cardWant.findUnique({ where: { id: cardWantId } });
+  if (!want || want.userId !== user.id) throw new Error("Introuvable");
+
+  await prisma.cardWant.delete({ where: { id: cardWantId } });
+  revalidatePath("/cards");
+}

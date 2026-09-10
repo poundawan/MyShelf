@@ -66,9 +66,14 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
             {event.status === "CANCELLED" ? (
               <span className="text-sm text-ink-soft">Événement annulé</span>
             ) : isHost ? (
-              <form action={cancelEventAction.bind(null, event.id)}>
-                <Button type="submit" variant="danger" size="sm">Annuler l&apos;événement</Button>
-              </form>
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <Link href={`/events/${event.id}/edit`} className="inline-block">
+                  <Button variant="secondary" size="sm">Modifier</Button>
+                </Link>
+                <form action={cancelEventAction.bind(null, event.id)}>
+                  <Button type="submit" variant="danger" size="sm">Annuler l&apos;événement</Button>
+                </form>
+              </div>
             ) : isParticipant ? (
               <form action={leaveEventAction.bind(null, event.id)}>
                 <Button type="submit" variant="secondary" size="sm">Se désinscrire</Button>

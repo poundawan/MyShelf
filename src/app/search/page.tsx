@@ -69,7 +69,7 @@ export default async function SearchPage({
     const clubs = await prisma.club.findMany({ include: { _count: { select: { memberships: true } } }, take: 10 });
     for (const club of clubs) {
       const km = pseudoDistanceKm(club.id);
-      if (km <= maxKm) results.push({ kind: "Club", title: club.name, meta: `${club.city} · ${club._count.memberships} membres`, href: "/", km });
+      if (km <= maxKm) results.push({ kind: "Club", title: club.name, meta: `${club.city} · ${club._count.memberships} membres`, href: `/clubs/${club.id}`, km });
     }
   }
 

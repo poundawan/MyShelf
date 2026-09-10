@@ -29,6 +29,22 @@ Dans ton projet Supabase → **Project Settings → Database → Connection stri
 - **Transaction pooler** (port `6543`, avec `?pgbouncer=true`) → `DATABASE_URL` (utilisée par l'app)
 - **Direct connection** (port `5432`) → `DIRECT_URL` (utilisée uniquement par les migrations Prisma — le pooler ne supporte pas les prepared statements nécessaires aux migrations)
 
+### Peupler la base de production
+
+La base Supabase est vide au premier déploiement : un nouvel arrivant tombe sur une application
+sans aucun jeu ni table. Pour y installer le jeu de démonstration, depuis ta machine :
+
+```bash
+DATABASE_URL="<l'URL Supabase>" DIRECT_URL="<l'URL Supabase>" npx prisma db seed
+```
+
+Le script **refuse de s'exécuter si la base contient déjà des jeux**, il est donc sans risque à
+relancer : il ne créera jamais de doublons. (`SEED_FORCE=1` passe outre, à n'utiliser qu'en
+connaissance de cause.)
+
+Les six comptes de démonstration partagent le mot de passe `password123` — à considérer comme
+des comptes publics, pas comme de vrais utilisateurs.
+
 ### Déployer sur Vercel
 
 1. Importe le dépôt GitHub dans Vercel (framework détecté automatiquement : Next.js).

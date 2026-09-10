@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { Badge, Button, Avatar, Card } from "@/components/ui";
-import { gameCategoryLabels, gameCategoryEmoji, playerLevelLabels } from "@/lib/labels";
+import { Badge, Button, Avatar, Card, Select } from "@/components/ui";
+import { gameCategoryLabels, gameCategoryEmoji, playerLevelLabels, conditionLabels, copyStatusLabels } from "@/lib/labels";
 import { pseudoDistanceKm, formatDistanceKm } from "@/lib/format";
-import { toggleGameWantAction } from "@/lib/actions/games";
+import { toggleGameWantAction, updateGameCopyConditionAction, deleteGameCopyAction } from "@/lib/actions/games";
 
 export default async function GameDetailPage({ params }: PageProps<"/games/[id]">) {
   const { id } = await params;
@@ -25,7 +25,12 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
     : null;
 
   const otherOwners = game.copies.filter((c) => c.ownerId !== user?.id);
-  const myCopy = user ? game.copies.find((c) => c.ownerId === user.id) : undefined;
+  // Volontairement hors de `game.copies`, qui ne liste que les copies posées
+  // sur la table d'échange : sinon une copie gardée au chaud deviendrait
+  // impossible à modifier ou à retirer.
+  const myCopy = user
+    ? await prisma.gameCopy.findFirst({ where: { gameId: game.id, ownerId: user.id } })
+    : null;
   const myWant = user
     ? await prisma.gameWant.findUnique({ where: { gameId_userId: { gameId: game.id, userId: user.id } } })
     : null;
@@ -84,6 +89,36 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
           </div>
         </div>
       </div>
+
+      {myCopy && (
+        <Card className="mt-10 p-4">
+          <h2 className="text-sm font-bold text-cream">Ma copie</h2>
+          <p className="mt-1 text-xs text-ink-soft">
+            {copyStatusLabels[myCopy.status]} · ajoutée le{" "}
+            {new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(myCopy.createdAt)}
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <form action={updateGameCopyConditionAction.bind(null, myCopy.id)} className="flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="condition" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gold">
+                  État de ta copie
+                </label>
+                <Select id="condition" name="condition" defaultValue={myCopy.condition} className="w-48">
+                  {Object.entries(conditionLabels).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </Select>
+              </div>
+              <Button type="submit" variant="secondary" size="sm">Enregistrer</Button>
+            </form>
+
+            <form action={deleteGameCopyAction.bind(null, myCopy.id)} className="ml-auto">
+              <Button type="submit" variant="danger" size="sm">Retirer de mon étagère</Button>
+            </form>
+          </div>
+        </Card>
+      )}
 
       {otherOwners.length > 0 && (
         <div className="mt-10">

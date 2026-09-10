@@ -179,9 +179,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </div>
           </Card>
 
-          {club && (
+          {club ? (
             <Card className="border-gold/40 bg-gold/10 p-4">
-              <h3 className="font-display text-base text-cream">Ton club : {club.name}</h3>
+              <Link href={`/clubs/${club.id}`} className="font-display text-base text-cream hover:text-gold">
+                Ton club : {club.name}
+              </Link>
               <p className="mt-1.5 text-sm text-ink-soft">
                 {club._count.memberships} membres
                 {nextClubEvent && `, une table ${formatEventDate(nextClubEvent.startAt).toLowerCase()}`}.
@@ -191,6 +193,20 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                   <Button size="sm" className="mt-3">Prochaine soirée</Button>
                 </Link>
               )}
+              <Link href="/clubs" className="-my-2 mt-3 inline-block py-2 text-xs font-bold text-gold hover:underline">
+                Tous les clubs
+              </Link>
+            </Card>
+          ) : (
+            <Card className="p-4">
+              <h3 className="font-display text-base text-cream">Pas encore de club</h3>
+              <p className="mt-1.5 text-sm text-ink-soft">
+                Un club, c&apos;est un groupe qui se retrouve régulièrement — et ses tables passent en
+                premier dans ton fil.
+              </p>
+              <Link href="/clubs" className="inline-block">
+                <Button size="sm" variant="secondary" className="mt-3">Découvrir les clubs</Button>
+              </Link>
             </Card>
           )}
         </div>

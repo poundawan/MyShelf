@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { gameCopySchema } from "@/lib/validation";
+import { gameCopySchema, itemConditions } from "@/lib/validation";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function addGameCopyAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -98,12 +98,38 @@ export async function removeGameWantAction(wantId: string) {
   revalidatePath("/shelf");
 }
 
+export async function updateGameCopyConditionAction(copyId: string, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const copy = await prisma.gameCopy.findUnique({ where: { id: copyId } });
+  if (!copy || copy.ownerId !== user.id) throw new Error("Copie introuvable");
+
+  const condition = String(formData.get("condition") ?? "");
+  if (!(itemConditions as readonly string[]).includes(condition)) throw new Error("État invalide");
+
+  await prisma.gameCopy.update({
+    where: { id: copyId },
+    data: { condition: condition as (typeof itemConditions)[number] },
+  });
+
+  revalidatePath("/shelf");
+  revalidatePath(`/games/${copy.gameId}`);
+}
+
 export async function deleteGameCopyAction(copyId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const copy = await prisma.gameCopy.findUnique({ where: { id: copyId } });
   if (!copy || copy.ownerId !== user.id) throw new Error("Copie introuvable");
+
+  // Retirer une copie engagée dans une négociation en cours laisserait
+  // l'échange sans objet, côté interlocuteur comme en base.
+  const engagee = await prisma.tradeItem.findFirst({
+    where: { gameCopyId: copyId, tradeProposal: { status: { in: ["PENDING", "ACCEPTED"] } } },
+  });
+  if (engagee) throw new Error("Ce jeu est engagé dans un échange en cours");
 
   await prisma.gameCopy.delete({ where: { id: copyId } });
   revalidatePath("/shelf");

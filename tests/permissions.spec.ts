@@ -37,16 +37,21 @@ test.describe("Pages réservées aux membres connectés", () => {
     }
   });
 
-  test("un formulaire soumis sans session ne crée rien", async ({ page }) => {
-    // /shelf/new est un composant client sans garde de rendu : le formulaire
-    // s'affiche même déconnecté. C'est l'action serveur qui doit refuser.
-    const titre = `Sans session ${Date.now()}`;
-    await page.goto("/shelf/new");
-    await page.fill("#title", titre);
-    await page.getByRole("button", { name: "Ajouter à mon étagère" }).click();
+  test("les formulaires de création sont hors de portée sans session", async ({ page }) => {
+    // Double barrière : la page ne se rend pas (garde de rendu), et l'action
+    // serveur revalide de toute façon la session. On vérifie la première ici,
+    // la seconde étant couverte par les tests de chaque action.
+    const avant = await rows('SELECT 1 FROM "Game"');
 
-    await page.waitForURL(/\/login/);
-    expect(await rows('SELECT 1 FROM "Game" WHERE title = $1', [titre])).toHaveLength(0);
+    for (const route of ["/shelf/new", "/cards/new", "/events/new"]) {
+      await page.goto(route);
+      await expect(page).toHaveURL(/\/login/);
+      // Les champs propres aux formulaires de création ne doivent pas exister.
+      await expect(page.locator("#title, #name, #startAt, #condition")).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "Connexion", level: 1 })).toBeVisible();
+    }
+
+    expect(await rows('SELECT 1 FROM "Game"')).toHaveLength(avant.length);
   });
 });
 

@@ -13,6 +13,20 @@ function daysFromNow(days: number, hour: number, minute = 0) {
 }
 
 async function main() {
+  // Ce script n'est pas conçu pour fusionner avec des données existantes : les
+  // jeux, copies, tables et échanges n'ont pas de clé naturelle et seraient
+  // recréés en double à chaque exécution. On refuse donc de peupler une base
+  // qui contient déjà quelque chose — ce qui rend la commande sûre à relancer,
+  // notamment en production.
+  const dejaPeuplee = await prisma.game.count();
+  if (dejaPeuplee > 0 && process.env.SEED_FORCE !== "1") {
+    console.log(
+      `Base déjà peuplée (${dejaPeuplee} jeux) : rien à faire.\n` +
+        "Pour forcer malgré tout (au risque de créer des doublons) : SEED_FORCE=1",
+    );
+    return;
+  }
+
   const passwordHash = await bcrypt.hash("password123", 10);
 
   const [chloe, marius, lea, bastien, sofiane, amandine] = await Promise.all([

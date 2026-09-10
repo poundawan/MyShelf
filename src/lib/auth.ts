@@ -2,6 +2,7 @@ import "server-only";
 
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
@@ -68,4 +69,19 @@ export async function getCurrentUser() {
       bio: true, verified: true, experienceLevel: true,
     },
   });
+}
+
+/**
+ * Exige une session et renvoie l'utilisateur, ou redirige vers la connexion.
+ *
+ * À utiliser dans les composants serveur qui ne doivent rien afficher à un
+ * visiteur déconnecté : sans cela, un formulaire client s'affiche entièrement
+ * et la personne n'est renvoyée vers la connexion qu'à l'envoi, sa saisie
+ * perdue. Les actions serveur revalident de toute façon la session : cette
+ * garde est là pour le confort, pas pour la sécurité.
+ */
+export async function requireUser() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
 }
