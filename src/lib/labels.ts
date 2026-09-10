@@ -1,65 +1,22 @@
-export const gameCategoryLabels: Record<string, string> = {
-  BOARD_GAME: "Jeu de société",
-  ROLE_PLAYING: "Jeu de rôle",
-  OTHER: "Autre",
-};
+/**
+ * Ce qui reste ici ne dépend pas de la langue : des symboles et un barème.
+ *
+ * Les libellés, eux, vivent dans les dictionnaires de `src/lib/i18n` et se
+ * lisent avec `t("category." + valeur)`. Les garder ici en dur reviendrait à
+ * n'avoir qu'une seule langue possible.
+ */
+
 export const gameCategoryEmoji: Record<string, string> = {
   BOARD_GAME: "🎲",
   ROLE_PLAYING: "🐉",
   OTHER: "📦",
 };
 
-export const eventTypeLabels: Record<string, string> = {
-  BOARD_GAME: "Jeu de société",
-  ROLE_PLAYING: "Jeu de rôle",
-  TCG: "TCG",
-  DISCOVERY: "Découverte",
-};
 export const eventTypeEmoji: Record<string, string> = {
   BOARD_GAME: "🎲",
   ROLE_PLAYING: "🐉",
   TCG: "🃏",
   DISCOVERY: "✨",
-};
-
-export const playerLevelLabels: Record<string, string> = {
-  BEGINNER: "Débutant",
-  INTERMEDIATE: "Intermédiaire",
-  CONFIRMED: "Confirmé",
-};
-
-export const conditionLabels: Record<string, string> = {
-  NEW: "Neuf",
-  LIKE_NEW: "Comme neuf",
-  GOOD: "Bon état",
-  WORN: "Usé",
-};
-
-export const copyStatusLabels: Record<string, string> = {
-  ON_TABLE: "Sur la table",
-  KEPT_WARM: "Gardée au chaud",
-  IN_TRADE: "En échange",
-  TRADED: "Échangée",
-};
-
-export const cardRarityLabels: Record<string, string> = {
-  COMMON: "Commune",
-  RARE: "Rare",
-  FOIL: "Foil",
-  MYTHIC: "Mythique",
-};
-
-export const eventStatusLabels: Record<string, string> = {
-  ACTIVE: "Prévue",
-  CANCELLED: "Annulée",
-};
-
-export const tradeStatusLabels: Record<string, string> = {
-  PENDING: "En attente",
-  ACCEPTED: "Acceptée",
-  REJECTED: "Refusée",
-  CANCELLED: "Annulée",
-  COMPLETED: "Terminée",
 };
 
 // niveau -> seuil d'échanges/tables cumulés pour l'atteindre

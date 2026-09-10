@@ -19,6 +19,11 @@ enum GameCategory {
   OTHER
 }
 
+enum Locale {
+  FR
+  EN
+}
+
 enum PlayerLevel {
   BEGINNER
   INTERMEDIATE
@@ -86,6 +91,8 @@ model User {
   bio             String?
   verified        Boolean     @default(false)
   experienceLevel PlayerLevel @default(INTERMEDIATE)
+  /// Langue d'affichage choisie par la personne.
+  locale          Locale      @default(FR)
   createdAt       DateTime    @default(now())
 
   gameCopies          GameCopy[]
@@ -224,6 +231,8 @@ model Event {
   club            Club?       @relation(fields: [clubId], references: [id], onDelete: SetNull)
   title           String
   type            EventType
+  /// Langues dans lesquelles la table peut se jouer.
+  languages       Locale[]    @default([FR])
   level           PlayerLevel @default(BEGINNER)
   description     String?
   bringList       String?
@@ -356,8 +365,12 @@ model Notification {
   userId    String
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   kind      NotificationKind
+  /// Clé de traduction, pas du texte : le destinataire peut lire dans une
+  /// autre langue que celle de la personne qui a déclenché la notification.
   title     String
   body      String?
+  /// Variables à insérer dans les clés ci-dessus (un prénom, un titre de table).
+  params    Json?
   /// Où la notification emmène quand on clique dessus.
   href      String
   /// Regroupe les notifications d'une même source (un échange, une

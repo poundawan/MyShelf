@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { EventCard } from "@/components/event-card";
 import { Input, Select, Button, Card } from "@/components/ui";
-import { eventTypeLabels } from "@/lib/labels";
+import { eventTypes } from "@/lib/validation";
+import { getT, getLocale } from "@/lib/i18n/server";
 
 export default async function EventsPage({
   searchParams,
@@ -11,6 +12,8 @@ export default async function EventsPage({
   searchParams: Promise<{ q?: string; type?: string; city?: string }>;
 }) {
   const { q, type, city } = await searchParams;
+  const t = await getT();
+  const locale = await getLocale();
   const user = await getCurrentUser();
 
   const events = await prisma.event.findMany({
@@ -30,33 +33,33 @@ export default async function EventsPage({
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-xs font-bold uppercase tracking-widest text-gold">Autour de la table</div>
-          <h1 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Tables</h1>
+          <div className="text-xs font-bold uppercase tracking-widest text-gold">{t("events.eyebrow")}</div>
+          <h1 className="mt-1 font-display text-3xl text-cream sm:text-4xl">{t("events.title")}</h1>
         </div>
         {user ? (
-          <Link href="/events/new"><Button>Ouvrir une table</Button></Link>
+          <Link href="/events/new"><Button>{t("events.open")}</Button></Link>
         ) : (
-          <Link href="/register"><Button>Créer un compte</Button></Link>
+          <Link href="/register"><Button>{t("nav.register")}</Button></Link>
         )}
       </div>
 
       <form className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-        <Input name="q" defaultValue={q} placeholder="Rechercher une table..." />
-        <Select name="type" defaultValue={type ?? ""} aria-label="Filtrer par type de jeu" className="sm:w-48">
-          <option value="">Tous les types</option>
-          {Object.entries(eventTypeLabels).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
+        <Input name="q" defaultValue={q} placeholder={t("events.search.placeholder")} />
+        <Select name="type" defaultValue={type ?? ""} aria-label={t("events.filter.type")} className="sm:w-48">
+          <option value="">{t("events.filter.allTypes")}</option>
+          {eventTypes.map((value) => (
+          <option key={value} value={value}>{t(`eventType.${value}`)}</option>
+        ))}
         </Select>
-        <Input name="city" defaultValue={city} placeholder="Ville" className="sm:w-40" />
-        <Button type="submit" variant="secondary">Filtrer</Button>
+        <Input name="city" defaultValue={city} placeholder={t("events.filter.city")} className="sm:w-40" />
+        <Button type="submit" variant="secondary">{t("common.filter")}</Button>
       </form>
 
       {events.length === 0 ? (
-        <Card className="p-10 text-center text-ink-soft">Aucune table à venir pour l&apos;instant.</Card>
+        <Card className="p-10 text-center text-ink-soft">{t("events.empty")}</Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => <EventCard key={event.id} event={event} />)}
+          {events.map((event) => <EventCard key={event.id} event={event} t={t} locale={locale} />)}
         </div>
       )}
     </div>

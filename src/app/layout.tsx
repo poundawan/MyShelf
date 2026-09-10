@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Bevan, Karla } from "next/font/google";
 import { Nav } from "@/components/nav";
+import { getI18n } from "@/lib/i18n/server";
+import { I18nProvider } from "@/lib/i18n/client";
+import { BCP47 } from "@/lib/i18n/types";
 import "./globals.css";
 
 const bevan = Bevan({
@@ -28,12 +31,16 @@ export const viewport: Viewport = {
   themeColor: "#8a5a34",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const i18n = await getI18n();
+
   return (
-    <html lang="fr" className={`${bevan.variable} ${karla.variable} h-full`}>
+    <html lang={BCP47[i18n.locale]} className={`${bevan.variable} ${karla.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-bg text-ink font-sans antialiased">
-        <Nav />
-        <main className="flex-1">{children}</main>
+        <I18nProvider value={i18n}>
+          <Nav />
+          <main className="flex-1">{children}</main>
+        </I18nProvider>
       </body>
     </html>
   );

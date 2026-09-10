@@ -39,8 +39,10 @@ export async function sendMessagePlainAction(formData: FormData) {
   await notify({
     userId: destinataire,
     kind: "MESSAGE_RECEIVED",
-    title: `Message de ${user.name}`,
-    body: texte.length > 120 ? `${texte.slice(0, 120)}…` : texte,
+    title: "notify.message",
+    // L'extrait du message n'est pas traduisible : c'est le texte de la personne.
+    params: { name: user.name, extrait: texte.length > 120 ? `${texte.slice(0, 120)}…` : texte },
+    body: "notify.excerpt",
     href: `/messages/${conversationId}`,
     subjectId: conversationId,
   });

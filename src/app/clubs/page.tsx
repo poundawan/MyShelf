@@ -3,8 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Avatar, Badge, Card } from "@/components/ui";
 import { pseudoDistanceKm, formatDistanceKm } from "@/lib/format";
+import { getT } from "@/lib/i18n/server";
 
 export default async function ClubsPage() {
+  const t = await getT();
   const user = await getCurrentUser();
 
   const clubs = await prisma.club.findMany({
@@ -30,16 +32,12 @@ export default async function ClubsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <div className="text-xs font-bold uppercase tracking-widest text-gold">Autour de la table</div>
-      <h1 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Clubs</h1>
-      <p className="mt-2 text-ink-soft">
-        Des groupes qui se retrouvent régulièrement. Rejoins-en un pour voir leurs tables en premier.
-      </p>
+      <div className="text-xs font-bold uppercase tracking-widest text-gold">{t("clubs.eyebrow")}</div>
+      <h1 className="mt-1 font-display text-3xl text-cream sm:text-4xl">{t("clubs.title")}</h1>
+      <p className="mt-2 text-ink-soft">{t("clubs.lede")}</p>
 
       {clubs.length === 0 ? (
-        <Card className="mt-8 p-8 text-center text-sm text-ink-soft">
-          Aucun club pour l&apos;instant.
-        </Card>
+        <Card className="mt-8 p-8 text-center text-sm text-ink-soft">{t("clubs.empty")}</Card>
       ) : (
         <div className="mt-8 flex flex-col gap-3">
           {clubs.map((club) => {
@@ -50,14 +48,14 @@ export default async function ClubsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-display text-lg text-cream">{club.name}</span>
-                      {myClubIds.has(club.id) && <Badge variant="primary">Ton club</Badge>}
+                      {myClubIds.has(club.id) && <Badge variant="primary">{t("clubs.yours")}</Badge>}
                     </div>
                     <div className="mt-1 text-xs text-ink-soft">
-                      {club.city} · {club._count.memberships} membre{club._count.memberships > 1 ? "s" : ""} ·{" "}
-                      {formatDistanceKm(pseudoDistanceKm(club.id))}
+                      {club.city} · {t("common.members", { count: club._count.memberships })} ·{" "}
+                      {formatDistanceKm(pseudoDistanceKm(club.id), t)}
                     </div>
                     {nextEvent && (
-                      <div className="mt-1.5 text-xs text-gold">Prochaine table : {nextEvent.title}</div>
+                      <div className="mt-1.5 text-xs text-gold">{t("clubs.nextTable", { title: nextEvent.title })}</div>
                     )}
                   </div>
                   <div className="flex flex-none -space-x-2">

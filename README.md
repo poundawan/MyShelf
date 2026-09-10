@@ -136,6 +136,35 @@ la même commande que celle exécutée par Vercel, pas le serveur de développem
 Postgres. En cas d'échec, le rapport Playwright (captures, vidéos, traces) est déposé en artefact
 du run.
 
+## Langues
+
+L'interface existe en français et en anglais. Chacun choisit la sienne dans
+**Modifier mon profil** ; le choix est enregistré sur le compte et suivi par un
+cookie, pour que les pages publiques s'affichent déjà dans la bonne langue.
+Un visiteur qui n'a pas de compte hérite de la langue de son navigateur, à
+défaut du français.
+
+Le réglage porte sur toute l'application : libellés, messages de validation,
+formats de date et attribut `lang` du document. Il ne touche évidemment pas aux
+textes écrits par les joueurs (titres de tables, messages, avis).
+
+Les traductions vivent dans `src/lib/i18n/` :
+
+- `fr.ts` fait référence — toute clé doit y exister ; les autres langues y
+  retombent si elles sont incomplètes, plutôt que d'afficher un identifiant.
+- `en.ts` reprend les mêmes clés.
+- Une valeur peut être une paire `{ one, other }` quand le texte dépend d'un
+  nombre : le français accorde au singulier pour 0 et 1, l'anglais seulement
+  pour 1, et `pluralForm()` s'en charge.
+
+Les **notifications** stockent une clé et ses variables, pas du texte figé :
+c'est le destinataire qui les lit, et il peut avoir choisi une autre langue que
+la personne qui a déclenché l'action.
+
+À ne pas confondre avec les **langues de jeu** d'une table : celles dans
+lesquelles la partie peut se dérouler, choisies à l'ouverture de la table et
+affichées sur sa fiche.
+
 ## Modèle de données
 
 Voir `prisma/schema.prisma` :
@@ -159,4 +188,5 @@ d'occurrences pour les tables récurrentes (champ informatif seulement).
 - Upload de photo réel (au lieu d'une URL).
 - Page dédiée par club (actuellement teaser sur l'accueil + résultat de recherche uniquement).
 - Modification et suppression d'un jeu, d'une carte ou d'une table depuis l'interface.
-- Notifications (e-mail ou push).
+- Notifications par e-mail ou push (celles dans l'application existent).
+- Ajouter d'autres langues que le français et l'anglais.

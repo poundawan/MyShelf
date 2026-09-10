@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { proposeGameTradeAction } from "@/lib/actions/trades";
 import { Button, Textarea, ErrorText } from "@/components/ui";
 import { gameCategoryEmoji } from "@/lib/labels";
+import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 type MyCopy = { id: string; game: { title: string; category: string } };
@@ -12,11 +13,12 @@ export function TradeWizard({ targetCopyId, targetOwnerName, myCopies }: { targe
   const [state, formAction, pending] = useActionState(proposeGameTradeAction, undefined);
   const [step, setStep] = useState<"items" | "message">("items");
   const [selected, setSelected] = useState<string[]>([]);
+  const t = useT();
 
   const steps = [
-    { key: "items", label: "1 Ton jeu" },
-    { key: "message", label: "2 Ton message" },
-    { key: "sent", label: "3 Envoyé" },
+    { key: "items", label: t("trade.wizard.step1") },
+    { key: "message", label: t("trade.wizard.step2") },
+    { key: "sent", label: t("trade.wizard.step3") },
   ] as const;
 
   return (
@@ -37,10 +39,10 @@ export function TradeWizard({ targetCopyId, targetOwnerName, myCopies }: { targe
 
       {step === "items" && (
         <div className="mt-6">
-          <h2 className="font-display text-xl text-cream">Qu&apos;est-ce que tu mets sur la table ?</h2>
+          <h2 className="font-display text-xl text-cream">{t("trade.wizard.pick")}</h2>
           {myCopies.length === 0 ? (
             <p className="mt-4 text-sm text-ink-soft">
-              Tu n&apos;as pas encore de jeu disponible. Ajoutes-en un depuis ton étagère.
+              {t("trade.wizard.none")}
             </p>
           ) : (
             <>
@@ -68,7 +70,7 @@ export function TradeWizard({ targetCopyId, targetOwnerName, myCopies }: { targe
                 })}
               </div>
               <Button type="button" className="mt-6" disabled={selected.length === 0} onClick={() => setStep("message")}>
-                Continuer
+                {t("common.continue")}
               </Button>
             </>
           )}
@@ -81,20 +83,20 @@ export function TradeWizard({ targetCopyId, targetOwnerName, myCopies }: { targe
           {selected.map((id) => (
             <input key={id} type="hidden" name="offeredCopyIds" value={id} />
           ))}
-          <h2 className="font-display text-xl text-cream">Un mot pour {targetOwnerName}</h2>
+          <h2 className="font-display text-xl text-cream">{t("trade.wizard.messageTitle", { name: targetOwnerName })}</h2>
           <Textarea
             name="message"
             rows={4}
             className="mt-4"
-            placeholder={`Salut ! Voilà ce que je te propose en échange...`}
+            placeholder={t("trade.wizard.messagePlaceholder")}
           />
           <ErrorText>{state?.error}</ErrorText>
           <div className="mt-4 flex gap-3">
             <Button type="button" variant="secondary" onClick={() => setStep("items")}>
-              ← Retour
+              {t("common.back")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Envoi..." : "Envoyer la proposition"}
+              {pending ? t("trade.wizard.pending") : t("trade.wizard.submit")}
             </Button>
           </div>
         </form>

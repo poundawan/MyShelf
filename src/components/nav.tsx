@@ -5,20 +5,22 @@ import { prisma } from "@/lib/prisma";
 import { Button, Avatar } from "@/components/ui";
 import { computeLevel } from "@/lib/labels";
 import { countUnread } from "@/lib/notifications";
+import { getT } from "@/lib/i18n/server";
 import { ChevronDown, Dice5, Library, Search, ArrowLeftRight, Layers, CalendarDays, Mail, LogOut, Bell } from "lucide-react";
 
 // `short` est le libellé de la barre d'onglets mobile : six colonnes doivent
 // tenir sans rognage dès 320 px de large.
 const NAV_ITEMS = [
-  { href: "/shelf", label: "Mon étagère", short: "Étagère", icon: Library },
-  { href: "/search", label: "Recherche", short: "Recherche", icon: Search },
-  { href: "/trades", label: "Échanges", short: "Échanges", icon: ArrowLeftRight, badgeKey: "trades" as const },
-  { href: "/cards", label: "Cartes", short: "Cartes", icon: Layers },
-  { href: "/events", label: "Tables", short: "Tables", icon: CalendarDays },
-  { href: "/messages", label: "Messages", short: "Messages", icon: Mail },
+  { href: "/shelf", key: "shelf", icon: Library },
+  { href: "/search", key: "search", icon: Search },
+  { href: "/trades", key: "trades", icon: ArrowLeftRight, badgeKey: "trades" as const },
+  { href: "/cards", key: "cards", icon: Layers },
+  { href: "/events", key: "events", icon: CalendarDays },
+  { href: "/messages", key: "messages", icon: Mail },
 ];
 
 export async function Nav() {
+  const t = await getT();
   const user = await getCurrentUser();
   let pendingTrades = 0;
   let level = 1;
@@ -61,7 +63,7 @@ export async function Nav() {
                     className="flex flex-none items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-2 text-[13px] font-semibold text-cream-soft transition-colors hover:bg-black/10 hover:text-cream xl:px-3"
                   >
                     <Icon className="size-4" />
-                    {item.label}
+                    {t(`nav.${item.key}`)}
                     {badge > 0 && (
                       <span className="rounded-sm bg-rust px-1.5 py-0.5 text-[10px] font-bold text-cream">{badge}</span>
                     )}
@@ -74,18 +76,18 @@ export async function Nav() {
               <details className="group relative">
                 <summary className="flex cursor-pointer list-none items-center gap-1 rounded-sm bg-gold px-2.5 py-2 text-[13px] font-bold text-gold-ink marker:content-none sm:px-3.5 [&::-webkit-details-marker]:hidden">
                   <Dice5 className="size-4" />
-                  <span className="hidden sm:inline">Créer</span>
+                  <span className="hidden sm:inline">{t("nav.create")}</span>
                   <ChevronDown className="size-3.5" />
                 </summary>
                 <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-sm border border-border-strong bg-surface shadow-xl">
                   <Link href="/events/new" className="flex items-center gap-2 px-4 py-3 text-sm text-ink hover:bg-white/5">
-                    Ouvrir une table
+                    {t("nav.create.event")}
                   </Link>
                   <Link href="/shelf/new" className="flex items-center gap-2 border-t border-border px-4 py-3 text-sm text-ink hover:bg-white/5">
-                    Ajouter un jeu
+                    {t("nav.create.game")}
                   </Link>
                   <Link href="/cards/new" className="flex items-center gap-2 border-t border-border px-4 py-3 text-sm text-ink hover:bg-white/5">
-                    Ajouter une carte
+                    {t("nav.create.card")}
                   </Link>
                 </div>
               </details>
@@ -94,8 +96,8 @@ export async function Nav() {
                 href="/notifications"
                 aria-label={
                   unreadNotifications > 0
-                    ? `Notifications, ${unreadNotifications} non lue${unreadNotifications > 1 ? "s" : ""}`
-                    : "Notifications"
+                    ? t("nav.notifications.unread", { count: unreadNotifications })
+                    : t("nav.notifications")
                 }
                 className="relative flex size-9 flex-none items-center justify-center rounded-sm text-cream-soft transition-colors hover:bg-black/10 hover:text-cream"
               >
@@ -111,7 +113,7 @@ export async function Nav() {
                 <Avatar name={user.name} size={30} />
                 <span className="hidden text-left leading-tight xl:block">
                   <span className="block text-xs font-bold text-cream">{user.name}</span>
-                  <span className="block text-[10px] text-cream-soft">Niveau {level}</span>
+                  <span className="block text-[10px] text-cream-soft">{t("nav.level", { level })}</span>
                 </span>
               </Link>
               {/* En dessous de `xl` la déconnexion se réduit à son icône : le
@@ -119,13 +121,13 @@ export async function Nav() {
               <form action={logoutAction}>
                 <button
                   type="submit"
-                  aria-label="Déconnexion"
+                  aria-label={t("nav.logout")}
                   className="flex size-9 items-center justify-center rounded-sm text-cream-soft transition-colors hover:bg-black/10 hover:text-cream xl:hidden"
                 >
                   <LogOut className="size-4" />
                 </button>
                 <Button type="submit" variant="ghost" size="sm" className="hidden text-cream-soft hover:text-cream xl:inline-flex">
-                  Déconnexion
+                  {t("nav.logout")}
                 </Button>
               </form>
             </div>
@@ -134,13 +136,13 @@ export async function Nav() {
           <nav className="ml-auto flex flex-none items-center gap-1 sm:gap-2">
             <Link href="/login">
               <Button variant="ghost" size="sm" className="text-cream-soft hover:text-cream">
-                Connexion
+                {t("nav.login")}
               </Button>
             </Link>
             <Link href="/register">
               <Button size="sm">
-                <span className="sm:hidden">S&apos;inscrire</span>
-                <span className="hidden sm:inline">Créer un compte</span>
+                <span className="sm:hidden">{t("nav.register.short")}</span>
+                <span className="hidden sm:inline">{t("nav.register")}</span>
               </Button>
             </Link>
           </nav>
@@ -160,7 +162,7 @@ export async function Nav() {
                 className="relative flex min-w-0 flex-col items-center gap-1 px-0.5 py-2 text-[10px] font-semibold text-cream-soft transition-colors hover:bg-black/10 hover:text-cream"
               >
                 <Icon className="size-[18px] flex-none" />
-                <span className="w-full truncate text-center leading-none">{item.short}</span>
+                <span className="w-full truncate text-center leading-none">{t(`nav.${item.key}.short`)}</span>
                 {badge > 0 && (
                   <span className="absolute right-1.5 top-1 rounded-full bg-rust px-1 text-[9px] font-bold leading-4 text-cream">
                     {badge}

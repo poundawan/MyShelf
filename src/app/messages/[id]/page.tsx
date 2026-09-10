@@ -2,12 +2,14 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getT } from "@/lib/i18n/server";
 import { sendMessagePlainAction } from "@/lib/actions/messages";
 import { Avatar, Badge, Card, Input, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 export default async function ConversationPage({ params }: PageProps<"/messages/[id]">) {
   const { id } = await params;
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -27,7 +29,7 @@ export default async function ConversationPage({ params }: PageProps<"/messages/
   return (
     <div className="mx-auto flex max-w-2xl flex-col px-4 py-10 sm:px-6" style={{ minHeight: "calc(100vh - 130px)" }}>
       <Link href="/messages" className="-my-2 inline-flex self-start py-2 text-xs font-bold uppercase tracking-widest text-gold hover:underline">
-        ← Autour de la table
+        {t("messages.back")}
       </Link>
 
       <div className="mt-3 flex items-center justify-between gap-3 border-b border-border pb-4">
@@ -40,7 +42,7 @@ export default async function ConversationPage({ params }: PageProps<"/messages/
         </div>
         {activeTrade && (
           <Link href={`/trades/${activeTrade.id}`}>
-            <Badge variant="primary">Échange en cours</Badge>
+            <Badge variant="primary">{t("messages.activeTrade")}</Badge>
           </Link>
         )}
       </div>
@@ -58,14 +60,14 @@ export default async function ConversationPage({ params }: PageProps<"/messages/
           </div>
         ))}
         {conversation.messages.length === 0 && (
-          <Card className="p-6 text-center text-sm text-ink-soft">Dites bonjour !</Card>
+          <Card className="p-6 text-center text-sm text-ink-soft">{t("messages.sayHello")}</Card>
         )}
       </div>
 
       <form action={sendMessagePlainAction} className="mt-4 flex items-center gap-2">
         <input type="hidden" name="conversationId" value={conversation.id} />
-        <Input name="content" placeholder="Écris ton message..." required className="flex-1" />
-        <Button type="submit">Envoyer</Button>
+        <Input name="content" placeholder={t("messages.placeholder")} required className="flex-1" />
+        <Button type="submit">{t("common.send")}</Button>
       </form>
     </div>
   );

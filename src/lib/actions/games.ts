@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getT } from "@/lib/i18n/server";
 import { gameCopySchema, itemConditions } from "@/lib/validation";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function addGameCopyAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -23,7 +25,7 @@ export async function addGameCopyAction(_prevState: ActionState, formData: FormD
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
+    return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
   }
 
   const { title, category, condition, minPlayers, maxPlayers, durationMin, description, photoUrl } = parsed.data;

@@ -2,10 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { Badge, Card } from "@/components/ui";
-import { gameCategoryEmoji, tradeStatusLabels } from "@/lib/labels";
+import { Badge, Button, Card } from "@/components/ui";
+import { gameCategoryEmoji } from "@/lib/labels";
+import { getT } from "@/lib/i18n/server";
 
 export default async function TradesPage() {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -21,11 +23,15 @@ export default async function TradesPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-3xl text-cream sm:text-4xl">Mes échanges</h1>
+      <h1 className="font-display text-3xl text-cream sm:text-4xl">{t("trades.title")}</h1>
 
       {trades.length === 0 ? (
         <Card className="mt-8 p-10 text-center text-ink-soft">
-          Aucun échange pour l&apos;instant. Parcours <Link href="/shelf" className="font-bold text-gold hover:underline">ton étagère</Link> ou <Link href="/cards" className="font-bold text-gold hover:underline">les cartes</Link> pour en lancer un.
+          {t("trades.empty")}
+          <div className="mt-4 flex flex-wrap justify-center gap-3">
+            <Link href="/shelf"><Button size="sm" variant="secondary">{t("trades.emptyHint.shelf")}</Button></Link>
+            <Link href="/cards"><Button size="sm" variant="secondary">{t("trades.emptyHint.cards")}</Button></Link>
+          </div>
         </Card>
       ) : (
         <div className="mt-8 flex flex-col gap-3">
@@ -47,7 +53,7 @@ export default async function TradesPage() {
                     </p>
                   </div>
                   <Badge variant={trade.status === "COMPLETED" ? "muted" : trade.status === "PENDING" ? "primary" : "outline"}>
-                    {tradeStatusLabels[trade.status]}
+                    {t(`tradeStatus.${trade.status}`)}
                   </Badge>
                 </Card>
               </Link>

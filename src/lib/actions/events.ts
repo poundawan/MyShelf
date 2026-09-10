@@ -4,11 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getT } from "@/lib/i18n/server";
 import { eventSchema, eventUpdateSchema } from "@/lib/validation";
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function createEventAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -16,6 +18,7 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
     title: formData.get("title"),
     type: formData.get("type"),
     level: formData.get("level"),
+    languages: formData.getAll("languages"),
     description: formData.get("description"),
     bringList: formData.get("bringList"),
     city: formData.get("city"),
@@ -24,13 +27,13 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
     endAt: formData.get("endAt"),
     maxParticipants: formData.get("maxParticipants"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
 
-  const { title, type, level, description, bringList, city, location, startAt, endAt, maxParticipants } = parsed.data;
+  const { title, type, level, languages, description, bringList, city, location, startAt, endAt, maxParticipants } = parsed.data;
 
   const event = await prisma.event.create({
     data: {
-      hostId: user.id, title, type, level,
+      hostId: user.id, title, type, level, languages,
       description: description || null, bringList: bringList || null,
       city, location: location || null, startAt, endAt: endAt ?? null,
       maxParticipants: maxParticipants ?? null,
@@ -44,17 +47,19 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
 }
 
 export async function updateEventAction(eventId: string, _prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const existing = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!existing) return { error: "Table introuvable" };
-  if (existing.hostId !== user.id) return { error: "Seul l'organisateur peut modifier cette table" };
+  if (!existing) return { error: t("action.eventNotFound") };
+  if (existing.hostId !== user.id) return { error: t("action.hostOnly") };
 
   const parsed = eventUpdateSchema.safeParse({
     title: formData.get("title"),
     type: formData.get("type"),
     level: formData.get("level"),
+    languages: formData.getAll("languages"),
     description: formData.get("description"),
     bringList: formData.get("bringList"),
     city: formData.get("city"),
@@ -63,23 +68,23 @@ export async function updateEventAction(eventId: string, _prevState: ActionState
     endAt: formData.get("endAt"),
     maxParticipants: formData.get("maxParticipants"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
 
-  const { title, type, level, description, bringList, city, location, startAt, endAt, maxParticipants } = parsed.data;
+  const { title, type, level, languages, description, bringList, city, location, startAt, endAt, maxParticipants } = parsed.data;
 
   // On ne peut pas réduire le nombre de places en dessous du nombre d'inscrits :
   // il faudrait désinscrire quelqu'un sans le lui dire.
   if (maxParticipants) {
     const inscrits = await prisma.eventParticipant.count({ where: { eventId } });
     if (maxParticipants < inscrits) {
-      return { error: `${inscrits} personnes sont déjà inscrites : impossible de descendre en dessous.` };
+      return { error: t("action.tooFewPlaces", { count: inscrits }) };
     }
   }
 
   await prisma.event.update({
     where: { id: eventId },
     data: {
-      title, type, level,
+      title, type, level, languages,
       description: description || null, bringList: bringList || null,
       city, location: location || null, startAt, endAt: endAt ?? null,
       maxParticipants: maxParticipants ?? null,
@@ -119,7 +124,8 @@ export async function joinEventAction(eventId: string) {
     await notify({
       userId: event.hostId,
       kind: "EVENT_JOINED",
-      title: `${user.name} rejoint « ${event.title} »`,
+      title: "notify.eventJoined",
+      params: { name: user.name, title: event.title },
       href: `/events/${eventId}`,
       subjectId: eventId,
     });
@@ -159,8 +165,9 @@ export async function cancelEventAction(eventId: string) {
     await notify({
       userId: participant.userId,
       kind: "EVENT_CANCELLED",
-      title: `« ${event.title} » est annulée`,
-      body: `${user.name} a annulé la table.`,
+      title: "notify.eventCancelled",
+      params: { name: user.name, title: event.title },
+      body: "notify.eventCancelled.body",
       href: `/events/${eventId}`,
       subjectId: eventId,
     });

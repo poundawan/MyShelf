@@ -3,11 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import { Avatar, Badge, Card, StatTile, LevelBar, Stars, Button } from "@/components/ui";
-import { computeLevel, levelThresholds, playerLevelLabels } from "@/lib/labels";
+import { computeLevel, levelThresholds } from "@/lib/labels";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { formatMonthYear } from "@/lib/format";
 import { startConversationAction } from "@/lib/actions/messages";
 
 export default async function ProfilePage({ params }: PageProps<"/profile/[id]">) {
   const { id } = await params;
+  const t = await getT();
+  const locale = await getLocale();
   const viewer = await getCurrentUser();
 
   const profileUser = await prisma.user.findUnique({ where: { id } });
@@ -26,10 +30,22 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
   const isSelf = viewer?.id === id;
 
   const badges = [
-    profileUser.verified && { title: "Identité vérifiée", desc: "Pièce d'identité contrôlée une fois, jamais stockée." },
-    completedTrades > 0 && { title: `${completedTrades} échange${completedTrades > 1 ? "s" : ""}`, desc: "Tous menés en face à face, aucun litige." },
-    hostedEvents > 0 && { title: "Hôtesse de table", desc: `${hostedEvents} table${hostedEvents > 1 ? "s" : ""} ouverte${hostedEvents > 1 ? "s" : ""}${avgRating ? `, note moyenne ${avgRating.toFixed(1).replace(".", ",")}` : ""}.` },
-    beginnerEventParticipants > 0 && { title: "Accueille les débutants", desc: `Signalée par ${beginnerEventParticipants} joueur${beginnerEventParticipants > 1 ? "s" : ""} comme pédagogue.` },
+    profileUser.verified && { title: t("profile.badge.verified"), desc: t("profile.badge.verified.desc") },
+    completedTrades > 0 && {
+      title: t("profile.badge.trades", { count: completedTrades }),
+      desc: t("profile.badge.trades.desc"),
+    },
+    hostedEvents > 0 && {
+      title: t("profile.badge.host"),
+      desc: t("profile.badge.host.desc", {
+        count: hostedEvents,
+        rating: avgRating ? t("profile.badge.host.rating", { rating: avgRating.toFixed(1) }) : "",
+      }),
+    },
+    beginnerEventParticipants > 0 && {
+      title: t("profile.badge.beginners"),
+      desc: t("profile.badge.beginners.desc", { count: beginnerEventParticipants }),
+    },
   ].filter((b): b is { title: string; desc: string } => Boolean(b));
 
   return (
@@ -43,39 +59,43 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
             <h1 className="min-w-0 font-display text-2xl text-cream sm:text-3xl">{profileUser.name}</h1>
           </div>
           <p className="mt-3 text-sm text-ink-soft">
-            {profileUser.city} · membre depuis {new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(profileUser.createdAt)} · {completedTrades} échange{completedTrades > 1 ? "s" : ""} en face à face
+            {t("profile.memberSince", {
+              city: profileUser.city,
+              date: formatMonthYear(profileUser.createdAt, locale),
+              trades: t("common.trades", { count: completedTrades }),
+            })}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {profileUser.verified && <Badge variant="primary">Identité vérifiée</Badge>}
-            <Badge variant="outline">Membre fiable · Niv. {level}</Badge>
-            <Badge variant="outline">{playerLevelLabels[profileUser.experienceLevel]}</Badge>
+            {profileUser.verified && <Badge variant="primary">{t("profile.verified")}</Badge>}
+            <Badge variant="outline">{t("profile.reliable", { level })}</Badge>
+            <Badge variant="outline">{t(`level.${profileUser.experienceLevel}`)}</Badge>
           </div>
           {profileUser.bio && <p className="mt-3 max-w-md text-sm text-ink-soft">{profileUser.bio}</p>}
         </div>
         {isSelf ? (
           <Link href="/profile/edit">
-            <Button variant="secondary">Modifier mon profil</Button>
+            <Button variant="secondary">{t("profile.edit")}</Button>
           </Link>
         ) : (
           viewer && (
             <form action={startConversationAction.bind(null, profileUser.id)}>
-              <Button type="submit" variant="secondary">Écrire</Button>
+              <Button type="submit" variant="secondary">{t("common.write")}</Button>
             </form>
           )
         )}
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-3">
-        <StatTile value={avgRating ? avgRating.toFixed(1).replace(".", ",") : "—"} label="note moyenne" />
-        <StatTile value={completedTrades} label="échanges" />
-        <StatTile value={hostedEvents} label="tables ouvertes" />
+        <StatTile value={avgRating ? avgRating.toFixed(1).replace(".", ",") : "—"} label={t("profile.stat.rating")} />
+        <StatTile value={completedTrades} label={t("profile.stat.trades")} />
+        <StatTile value={hostedEvents} label={t("profile.stat.events")} />
       </div>
 
       <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-[minmax(0,1fr)_280px]">
         <div>
-          <h2 className="font-display text-lg text-cream">Ce qu&apos;on dit de moi</h2>
+          <h2 className="font-display text-lg text-cream">{t("profile.reviews")}</h2>
           {reviews.length === 0 ? (
-            <Card className="mt-4 p-6 text-sm text-ink-soft">Pas encore d&apos;avis.</Card>
+            <Card className="mt-4 p-6 text-sm text-ink-soft">{t("profile.reviews.empty")}</Card>
           ) : (
             <div className="mt-4 flex flex-col gap-3">
               {reviews.map((r) => (
@@ -99,9 +119,9 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
 
         <div className="flex flex-col gap-4">
           <Card className="p-4">
-            <h3 className="mb-3 text-sm font-bold text-cream">Jetons gagnés</h3>
+            <h3 className="mb-3 text-sm font-bold text-cream">{t("profile.badges")}</h3>
             {badges.length === 0 ? (
-              <p className="text-sm text-ink-soft">Encore aucun jeton.</p>
+              <p className="text-sm text-ink-soft">{t("profile.badges.empty")}</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {badges.map((b) => (
@@ -119,16 +139,16 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
 
           <Card className="border-gold/40 bg-gold/10 p-4">
             <h3 className="mb-2 text-sm font-bold text-cream">
-              Niveau {level} dans {next ? next - completedInteractions : 0} échange{next && next - completedInteractions > 1 ? "s" : ""}
+              {t("profile.level.next", { level, remaining: next ? next - completedInteractions : 0, count: next ? next - completedInteractions : 0 })}
             </h3>
             <LevelBar progress={computeLevel(completedInteractions).progress} />
             {next && (
               <p className="mt-3 text-sm text-ink-soft">
-                Le niveau {level + 1} débloque l&apos;organisation de tables à plus de {(levelThresholds[level] ?? 20) * 3} places.
+                {t("profile.level.unlock", { next: level + 1, places: (levelThresholds[level] ?? 20) * 3 })}
               </p>
             )}
             {gameCopiesOnTable > 0 && isSelf && (
-              <p className="mt-2 text-xs text-ink-soft">{gameCopiesOnTable} jeu{gameCopiesOnTable > 1 ? "x" : ""} sur ta table en ce moment.</p>
+              <p className="mt-2 text-xs text-ink-soft">{t("profile.onTable", { count: gameCopiesOnTable })}</p>
             )}
           </Card>
         </div>

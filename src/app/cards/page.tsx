@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Badge, Button, Card, Input } from "@/components/ui";
-import { cardRarityLabels } from "@/lib/labels";
+import { getT } from "@/lib/i18n/server";
 import { pseudoDistanceKm, formatDistanceKm } from "@/lib/format";
 import { requestCardAction } from "@/lib/actions/trades";
 import { deleteCardCopyAction, deleteCardWantAction } from "@/lib/actions/cards";
@@ -14,6 +14,7 @@ const rarityBadge: Record<string, "primary" | "outline" | "muted" | "danger"> = 
 };
 
 export default async function CardsPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string }> }) {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -40,31 +41,31 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="text-xs font-bold uppercase tracking-widest text-gold">Ta main · ta liste de recherche</div>
-      <h1 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Échange de cartes</h1>
-      <p className="mt-2 text-ink-soft">Croisé avec les doubles des joueurs à moins de 5 km.</p>
+      <div className="text-xs font-bold uppercase tracking-widest text-gold">{t("cards.eyebrow")}</div>
+      <h1 className="mt-1 font-display text-3xl text-cream sm:text-4xl">{t("cards.title")}</h1>
+      <p className="mt-2 text-ink-soft">{t("cards.lede")}</p>
 
       <form className="mt-6 flex flex-wrap gap-3">
         <input type="hidden" name="tab" value={tab} />
-        <Input name="q" defaultValue={q} placeholder="Filtrer par carte ou extension..." className="min-w-64 flex-1" />
-        <Button type="submit" variant="secondary">Filtrer</Button>
+        <Input name="q" defaultValue={q} placeholder={t("cards.filter.placeholder")} className="min-w-64 flex-1" />
+        <Button type="submit" variant="secondary">{t("common.filter")}</Button>
       </form>
 
       <div className="mt-4 flex gap-2">
         <Link href={q ? `/cards?tab=search&q=${encodeURIComponent(q)}` : "/cards?tab=search"}>
-          <Button variant={!isMine ? "primary" : "secondary"} size="sm">Je cherche</Button>
+          <Button variant={!isMine ? "primary" : "secondary"} size="sm">{t("cards.tab.search")}</Button>
         </Link>
         <Link href="/cards?tab=mine">
-          <Button variant={isMine ? "primary" : "secondary"} size="sm">Mes cartes</Button>
+          <Button variant={isMine ? "primary" : "secondary"} size="sm">{t("cards.tab.mine")}</Button>
         </Link>
         <Link href="/cards/new" className="ml-auto">
-          <Button size="sm">+ Ajouter une carte</Button>
+          <Button size="sm">{t("cards.add")}</Button>
         </Link>
       </div>
 
       {copies.length === 0 ? (
         <Card className="mt-8 p-10 text-center text-ink-soft">
-          {isMine ? "Tu n'as pas encore ajouté de double." : "Aucune carte disponible pour l'instant."}
+          {isMine ? t("cards.empty.mine") : t("cards.empty.search")}
         </Card>
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -73,28 +74,24 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
             return (
               <Card key={copy.id} className="overflow-hidden">
                 <div className="relative flex aspect-[3/4] items-center justify-center bg-surface-2 text-xs uppercase tracking-widest text-ink-soft/65">
-                  scan carte
+                  {t("cards.placeholder")}
                   <span className={cn("absolute right-2 top-2")}>
-                    <Badge variant={rarityBadge[copy.card.rarity]}>{cardRarityLabels[copy.card.rarity]}</Badge>
+                    <Badge variant={rarityBadge[copy.card.rarity]}>{t(`rarity.${copy.card.rarity}`)}</Badge>
                   </span>
                 </div>
                 <div className="p-3">
                   <div className="font-display text-sm text-cream">{copy.card.name}</div>
                   <div className="mt-1 text-xs text-ink-soft">
                     {copy.card.setName ? `${copy.card.setName} · ` : ""}
-                    {copy.owner.name} · {formatDistanceKm(km)}
+                    {copy.owner.name} · {formatDistanceKm(km, t)}
                   </div>
                   {isMine ? (
                     <form action={deleteCardCopyAction.bind(null, copy.id)} className="mt-2">
-                      <Button type="submit" size="sm" variant="danger" className="w-full uppercase">
-                        Retirer
-                      </Button>
+                      <Button type="submit" size="sm" variant="danger" className="w-full uppercase">{t("common.remove")}</Button>
                     </form>
                   ) : (
                     <form action={requestCardAction.bind(null, copy.id)} className="mt-2">
-                      <Button type="submit" size="sm" variant="secondary" className="w-full uppercase">
-                        Demander
-                      </Button>
+                      <Button type="submit" size="sm" variant="secondary" className="w-full uppercase">{t("cards.request")}</Button>
                     </form>
                   )}
                 </div>
@@ -106,12 +103,9 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
 
       {isMine && (
         <div className="mt-12">
-          <h2 className="font-display text-lg text-cream">Les cartes que je cherche</h2>
+          <h2 className="font-display text-lg text-cream">{t("cards.wanted.title")}</h2>
           {myWants.length === 0 ? (
-            <Card className="mt-4 p-6 text-sm text-ink-soft">
-              Tu n&apos;as déclaré aucune carte recherchée. Elles apparaîtront ici, et les autres
-              joueurs verront que tu les cherches.
-            </Card>
+            <Card className="mt-4 p-6 text-sm text-ink-soft">{t("cards.wanted.empty")}</Card>
           ) : (
             <div className="mt-4 flex flex-col gap-2">
               {myWants.map((want) => (
@@ -119,11 +113,11 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold text-cream">{want.card.name}</div>
                     <div className="text-xs text-ink-soft">
-                      {want.card.setName ?? "Extension inconnue"} · {cardRarityLabels[want.card.rarity]}
+                      {want.card.setName ?? t("cards.wanted.unknownSet")} · {t(`rarity.${want.card.rarity}`)}
                     </div>
                   </div>
                   <form action={deleteCardWantAction.bind(null, want.id)}>
-                    <Button type="submit" size="sm" variant="ghost">Retirer</Button>
+                    <Button type="submit" size="sm" variant="ghost">{t("common.remove")}</Button>
                   </form>
                 </Card>
               ))}

@@ -3,11 +3,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Button, Card } from "@/components/ui";
+import { getT } from "@/lib/i18n/server";
 import { GameCopyCard } from "@/components/game-card";
 import { removeGameWantAction } from "@/lib/actions/games";
 import { gameCategoryEmoji } from "@/lib/labels";
 
 export default async function ShelfPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const { tab = "mine" } = await searchParams;
@@ -31,24 +33,24 @@ export default async function ShelfPage({ searchParams }: { searchParams: Promis
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-xs font-bold uppercase tracking-widest text-gold">Tes jeux</div>
-          <h1 className="mt-1 font-display text-3xl text-cream sm:text-4xl">Mon étagère</h1>
+          <div className="text-xs font-bold uppercase tracking-widest text-gold">{t("shelf.eyebrow")}</div>
+          <h1 className="mt-1 font-display text-3xl text-cream sm:text-4xl">{t("shelf.title")}</h1>
           <p className="mt-2 text-ink-soft">
-            {copies.length} boîte{copies.length > 1 ? "s" : ""} en jeu, dont {onTableCount} posée{onTableCount > 1 ? "s" : ""} sur la table d&apos;échange.
+            {t("shelf.summary", { count: copies.length, onTable: onTableCount })}
           </p>
         </div>
         <Link href="/shelf/new">
-          <Button>+ Ajouter un jeu</Button>
+          <Button>{t("shelf.add")}</Button>
         </Link>
       </div>
 
       <div className="mt-6 flex gap-2">
         <Link href="/shelf?tab=mine">
-          <Button size="sm" variant={!isWishlist ? "primary" : "secondary"}>Mes jeux</Button>
+          <Button size="sm" variant={!isWishlist ? "primary" : "secondary"}>{t("shelf.tab.mine")}</Button>
         </Link>
         <Link href="/shelf?tab=wishlist">
           <Button size="sm" variant={isWishlist ? "primary" : "secondary"}>
-            Ma liste{wants.length > 0 ? ` (${wants.length})` : ""}
+            {t("shelf.tab.wishlist")}{wants.length > 0 ? ` (${wants.length})` : ""}
           </Button>
         </Link>
       </div>
@@ -56,7 +58,8 @@ export default async function ShelfPage({ searchParams }: { searchParams: Promis
       {isWishlist ? (
         wants.length === 0 ? (
           <Card className="mt-8 p-10 text-center text-ink-soft">
-            Ta liste est vide. Parcours <Link href="/search" className="font-bold text-gold hover:underline">la recherche</Link> et ajoute les jeux qui t&apos;intéressent.
+            {t("shelf.wishlist.empty")}{" "}
+            <Link href="/search" className="font-bold text-gold hover:underline">{t("shelf.wishlist.searchLink")}</Link>.
           </Card>
         ) : (
           <div className="mt-8 flex flex-col gap-2">
@@ -69,7 +72,7 @@ export default async function ShelfPage({ searchParams }: { searchParams: Promis
                   {want.game.title}
                 </Link>
                 <form action={removeGameWantAction.bind(null, want.id)}>
-                  <Button type="submit" size="sm" variant="ghost">Retirer</Button>
+                  <Button type="submit" size="sm" variant="ghost">{t("common.remove")}</Button>
                 </form>
               </Card>
             ))}
@@ -77,8 +80,8 @@ export default async function ShelfPage({ searchParams }: { searchParams: Promis
         )
       ) : copies.length === 0 ? (
         <Card className="mt-8 p-10 text-center text-ink-soft">
-          Ton étagère est vide. <Link href="/shelf/new" className="font-bold text-gold hover:underline">Ajoute ton premier jeu</Link>.
-        </Card>
+            {t("shelf.empty")}
+          </Card>
       ) : (
         <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {copies.map((copy) => (

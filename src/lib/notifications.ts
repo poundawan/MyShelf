@@ -15,8 +15,11 @@ type Kind =
 type NewNotification = {
   userId: string;
   kind: Kind;
+  /** Clé de traduction du titre, et de l'éventuel corps. */
   title: string;
   body?: string | null;
+  /** Variables des deux clés : un prénom, un titre de table, un extrait. */
+  params?: Record<string, string | number>;
   href: string;
   /** Regroupe les notifications d'une même source (un échange, une conversation). */
   subjectId?: string | null;
@@ -27,6 +30,9 @@ const FENETRE_REGROUPEMENT_MS = 60 * 60 * 1000;
 
 /**
  * Dépose une notification, sans jamais faire échouer l'action qui l'a déclenchée.
+ *
+ * `title` et `body` sont des CLÉS de traduction : c'est le destinataire qui
+ * les lit, et il peut avoir choisi une autre langue que l'auteur de l'action.
  *
  * Prévenir quelqu'un est un effet de bord : si l'insertion échoue, l'échange
  * ou le message doit quand même aboutir. On avale donc l'erreur en la
@@ -55,6 +61,7 @@ export async function notify(notification: NewNotification) {
           data: {
             title: notification.title,
             body: notification.body ?? null,
+            params: notification.params ?? undefined,
             href: notification.href,
             createdAt: new Date(),
           },
@@ -69,6 +76,7 @@ export async function notify(notification: NewNotification) {
         kind: notification.kind,
         title: notification.title,
         body: notification.body ?? null,
+        params: notification.params ?? undefined,
         href: notification.href,
         subjectId: notification.subjectId ?? null,
       },

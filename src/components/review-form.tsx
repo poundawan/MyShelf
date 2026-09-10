@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import type { ActionState } from "@/lib/actions/auth";
 import { Button, Textarea, ErrorText } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 export function ReviewForm({
@@ -18,6 +19,7 @@ export function ReviewForm({
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [rating, setRating] = useState(5);
+  const t = useT();
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -34,16 +36,16 @@ export function ReviewForm({
               "flex size-10 items-center justify-center text-2xl leading-none transition-colors",
               n <= rating ? "text-gold" : "text-border-strong",
             )}
-            aria-label={`${n} étoile${n > 1 ? "s" : ""}`}
+            aria-label={t("review.stars", { count: n })}
           >
             ★
           </button>
         ))}
       </div>
-      <Textarea name="comment" rows={3} placeholder="Comment ça s'est passé ?" required />
+      <Textarea name="comment" rows={3} placeholder={t("review.comment.placeholder")} required />
       <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending} size="sm" className="self-start">
-        {pending ? "Envoi..." : "Publier l'avis"}
+        {pending ? t("review.pending") : t("review.submit")}
       </Button>
     </form>
   );

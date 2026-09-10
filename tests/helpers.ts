@@ -67,17 +67,34 @@ export async function login(page: Page, key: UserKey) {
   await page.fill("#password", SEED_PASSWORD);
   await page.getByRole("button", { name: "Se connecter" }).click();
   await page.waitForURL("/");
+  // L'application est bilingue : on accepte les deux libellés plutôt que de
+  // supposer la langue du compte.
   await expect(
-    page.getByRole("button", { name: "Déconnexion" }).first(),
+    page.getByRole("button", { name: /Déconnexion|Sign out/ }).first(),
     `la session de ${USERS[key].email} devrait être ouverte`,
   ).toBeVisible();
 }
 
 /** Ferme la session et attend que la page de connexion soit rendue. */
 export async function logout(page: Page) {
-  await page.getByRole("button", { name: "Déconnexion" }).first().click();
+  await page.getByRole("button", { name: /Déconnexion|Sign out/ }).first().click();
   await page.waitForURL(/\/login$/);
   await expect(page.getByRole("button", { name: "Se connecter" })).toBeVisible();
+}
+
+/**
+ * Normalise un tableau Postgres.
+ *
+ * `pg` ne connaît pas l'OID des tableaux d'énumération créés par Prisma et les
+ * renvoie sous forme de littéral (« {FR,EN} ») plutôt que de tableau.
+ */
+export function pgArray(valeur: unknown): string[] {
+  if (Array.isArray(valeur)) return valeur as string[];
+  if (typeof valeur === "string") {
+    const nu = valeur.replace(/^\{|\}$/g, "");
+    return nu ? nu.split(",").map((v) => v.replace(/^"|"$/g, "")) : [];
+  }
+  return [];
 }
 
 /** Rend un e-mail unique, pour que les tests d'inscription soient rejouables. */

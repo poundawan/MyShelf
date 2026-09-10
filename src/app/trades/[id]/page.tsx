@@ -5,12 +5,14 @@ import { respondToTradeAction, cancelTradeAction, completeTradeAction } from "@/
 import { sendMessagePlainAction } from "@/lib/actions/messages";
 import { createTradeReviewAction } from "@/lib/actions/reviews";
 import { Badge, Button, Card, Input, Stars } from "@/components/ui";
-import { gameCategoryEmoji, tradeStatusLabels } from "@/lib/labels";
+import { gameCategoryEmoji } from "@/lib/labels";
+import { getT } from "@/lib/i18n/server";
 import { ReviewForm } from "@/components/review-form";
 import { cn } from "@/lib/utils";
 
 export default async function TradeDetailPage({ params }: PageProps<"/trades/[id]">) {
   const { id } = await params;
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -41,16 +43,16 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
       <div className="text-xs font-bold uppercase tracking-widest text-gold">
-        {trade.status === "PENDING" && isSender ? "Proposition envoyée" : "Négociation"}
+        {trade.status === "PENDING" && isSender ? t("trade.eyebrow.sent") : t("trade.eyebrow")}
       </div>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-3xl text-cream sm:text-4xl">
           {trade.status === "PENDING" && isSender
-            ? `C'est parti, la balle est chez ${otherUser.name.split(" ")[0]}.`
-            : `Échange avec ${otherUser.name}`}
+            ? t("trade.title.sent", { name: otherUser.name.split(" ")[0] })
+            : t("trade.title", { name: otherUser.name })}
         </h1>
         <Badge variant={trade.status === "COMPLETED" ? "muted" : trade.status === "PENDING" ? "primary" : "outline"}>
-          {tradeStatusLabels[trade.status]}
+          {t(`tradeStatus.${trade.status}`)}
         </Badge>
       </div>
 
@@ -58,7 +60,7 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Card className="p-4">
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-ink-soft">
-              {isSender ? "Ce que tu proposes" : `Ce que ${otherUser.name.split(" ")[0]} veut chez toi`}
+              {isSender ? t("trade.yours") : t("trade.theyWant", { name: otherUser.name.split(" ")[0] })}
             </p>
             {mine.map((i) => (
               <div key={i.id} className="py-1 text-sm text-cream">{itemLabel(i)}</div>
@@ -66,7 +68,7 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
           </Card>
           <Card className="p-4">
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-ink-soft">
-              {isSender ? "Ce que tu veux chez lui" : "Ce qu'il/elle propose"}
+              {isSender ? t("trade.youWant") : t("trade.theirs")}
             </p>
             {theirs.map((i) => (
               <div key={i.id} className="py-1 text-sm text-cream">{itemLabel(i)}</div>
@@ -75,11 +77,11 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
         </div>
       ) : (
         <Card className="mt-6 p-4">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-soft">Carte demandée</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-soft">{t("trade.card")}</p>
           {theirs.concat(mine).map((i) => (
             <div key={i.id} className="py-1 text-sm text-cream">{itemLabel(i)}</div>
           ))}
-          <p className="mt-2 text-xs text-ink-soft">Mettez-vous d&apos;accord sur le contre-échange par message.</p>
+          <p className="mt-2 text-xs text-ink-soft">{t("trade.card.note")}</p>
         </Card>
       )}
 
@@ -87,21 +89,21 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
         {trade.status === "PENDING" && !isSender && (
           <>
             <form action={respondToTradeAction.bind(null, trade.id, true)}>
-              <Button type="submit">Accepter</Button>
+              <Button type="submit">{t("trade.accept")}</Button>
             </form>
             <form action={respondToTradeAction.bind(null, trade.id, false)}>
-              <Button type="submit" variant="secondary">Refuser</Button>
+              <Button type="submit" variant="secondary">{t("trade.reject")}</Button>
             </form>
           </>
         )}
         {trade.status === "ACCEPTED" && (
           <form action={completeTradeAction.bind(null, trade.id)}>
-            <Button type="submit">Marquer comme terminé</Button>
+            <Button type="submit">{t("trade.complete")}</Button>
           </form>
         )}
         {(trade.status === "PENDING" || trade.status === "ACCEPTED") && (
           <form action={cancelTradeAction.bind(null, trade.id)}>
-            <Button type="submit" variant="ghost">Annuler l&apos;échange</Button>
+            <Button type="submit" variant="ghost">{t("trade.cancel")}</Button>
           </form>
         )}
       </div>
@@ -110,7 +112,7 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
         <Card className="mt-10 p-4">
           {myReview ? (
             <div>
-              <p className="mb-1 text-sm font-bold text-cream">Ton avis</p>
+              <p className="mb-1 text-sm font-bold text-cream">{t("review.yours")}</p>
               <Stars rating={myReview.rating} />
               <p className="mt-2 text-sm text-ink-soft">{myReview.comment}</p>
             </div>
@@ -119,7 +121,7 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
               action={createTradeReviewAction}
               hiddenField="tradeId"
               hiddenValue={trade.id}
-              title={`Comment s'est passé l'échange avec ${otherUser.name} ?`}
+              title={t("review.tradeTitle", { name: otherUser.name })}
             />
           )}
         </Card>
@@ -127,7 +129,7 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
 
       {trade.conversation && (
         <div className="mt-10">
-          <h2 className="font-display text-lg text-cream">Messages</h2>
+          <h2 className="font-display text-lg text-cream">{t("trade.messages")}</h2>
           <div className="mt-3 flex flex-col gap-2">
             {trade.conversation.messages.map((m) => (
               <div
@@ -143,8 +145,8 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
           </div>
           <form action={sendMessagePlainAction} className="mt-3 flex items-center gap-2">
             <input type="hidden" name="conversationId" value={trade.conversation.id} />
-            <Input name="content" placeholder="Écris ton message..." required className="flex-1" />
-            <Button type="submit" size="sm">Envoyer</Button>
+            <Input name="content" placeholder={t("trade.message.placeholder")} required className="flex-1" />
+            <Button type="submit" size="sm">{t("common.send")}</Button>
           </form>
         </div>
       )}

@@ -4,11 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getT } from "@/lib/i18n/server";
 import { getOrCreateConversation } from "@/lib/actions/messages";
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function proposeGameTradeAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -17,15 +19,15 @@ export async function proposeGameTradeAction(_prevState: ActionState, formData: 
   const message = String(formData.get("message") ?? "").trim();
 
   if (!targetCopyId || offeredCopyIds.length === 0) {
-    return { error: "Choisis au moins un de tes jeux à proposer en échange" };
+    return { error: t("action.pickOneGame") };
   }
 
   const targetCopy = await prisma.gameCopy.findUnique({ where: { id: targetCopyId } });
-  if (!targetCopy || targetCopy.status !== "ON_TABLE") return { error: "Cette copie n'est plus disponible" };
-  if (targetCopy.ownerId === user.id) return { error: "Tu ne peux pas échanger avec toi-même" };
+  if (!targetCopy || targetCopy.status !== "ON_TABLE") return { error: t("action.copyGone") };
+  if (targetCopy.ownerId === user.id) return { error: t("action.noSelfTrade") };
 
   const offered = await prisma.gameCopy.findMany({ where: { id: { in: offeredCopyIds }, ownerId: user.id, status: "ON_TABLE" } });
-  if (offered.length !== offeredCopyIds.length) return { error: "Un des jeux sélectionnés n'est plus disponible" };
+  if (offered.length !== offeredCopyIds.length) return { error: t("action.offeredGone") };
 
   const conversation = await getOrCreateConversation(user.id, targetCopy.ownerId);
 
@@ -46,8 +48,9 @@ export async function proposeGameTradeAction(_prevState: ActionState, formData: 
   await notify({
     userId: targetCopy.ownerId,
     kind: "TRADE_PROPOSED",
-    title: `${user.name} te propose un échange`,
-    body: message || null,
+    title: "notify.tradeProposed",
+    params: { name: user.name },
+    body: null,
     href: `/trades/${trade.id}`,
     subjectId: trade.id,
   });
@@ -76,7 +79,8 @@ export async function requestCardAction(cardCopyId: string) {
   await notify({
     userId: cardCopy.ownerId,
     kind: "TRADE_PROPOSED",
-    title: `${user.name} demande une de tes cartes`,
+    title: "notify.cardRequested",
+    params: { name: user.name },
     href: `/trades/${trade.id}`,
     subjectId: trade.id,
   });
@@ -116,10 +120,9 @@ export async function respondToTradeAction(tradeId: string, accept: boolean) {
   await notify({
     userId: trade.fromUserId,
     kind: accept ? "TRADE_ACCEPTED" : "TRADE_REJECTED",
-    title: accept
-      ? `${user.name} accepte ton échange`
-      : `${user.name} décline ton échange`,
-    body: accept ? "Convenez d'un lieu et d'une heure par message." : null,
+    title: accept ? "notify.tradeAccepted" : "notify.tradeRejected",
+    params: { name: user.name },
+    body: accept ? "notify.tradeAccepted.body" : null,
     href: `/trades/${tradeId}`,
     subjectId: tradeId,
   });
@@ -156,8 +159,9 @@ export async function completeTradeAction(tradeId: string) {
   await notify({
     userId: autre,
     kind: "TRADE_COMPLETED",
-    title: `Échange terminé avec ${user.name}`,
-    body: "Tu peux maintenant laisser un avis.",
+    title: "notify.tradeCompleted",
+    params: { name: user.name },
+    body: "notify.tradeCompleted.body",
     href: `/trades/${tradeId}`,
     subjectId: tradeId,
   });

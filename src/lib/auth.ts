@@ -79,7 +79,7 @@ export async function getCurrentUser() {
     where: { id: userId },
     select: {
       id: true, email: true, name: true, city: true, avatarUrl: true, createdAt: true,
-      bio: true, verified: true, experienceLevel: true,
+      bio: true, verified: true, experienceLevel: true, locale: true,
     },
   });
 }

@@ -119,7 +119,7 @@ async function main() {
 
   const weekendDnd = await prisma.event.create({ data: {
     hostId: sofiane.id, clubId: club.id, title: "Weekend DnD — Les Cavernes de Sel",
-    type: "ROLE_PLAYING", level: "BEGINNER",
+    type: "ROLE_PLAYING", languages: ["FR"], level: "BEGINNER",
     description: "Deux jours dans les mines abandonnées de Sel-sur-Rhône. On joue une campagne courte, pré-tirée, avec des fiches de perso prêtes à l'emploi. Si tu n'as jamais lancé un dé à vingt faces, c'est exactement la table qu'il te faut : on prend la première heure pour tout expliquer.\n\nRepas partagé le samedi soir, chacun apporte quelque chose. Le matériel est fourni par le club.",
     bringList: "Rien d'obligatoire. Tes dés si tu en as, et un plat pour le samedi soir.",
     city: "Lyon 7e", location: "Comptoir des Halles, Lyon 7e",
@@ -139,7 +139,7 @@ async function main() {
 
   await prisma.event.create({ data: {
     hostId: marius.id, title: "Draft TCG du jeudi",
-    type: "TCG", level: "CONFIRMED",
+    type: "TCG", languages: ["EN"], level: "CONFIRMED",
     description: "Draft classique, boosters fournis par la boutique partenaire.",
     city: "Lyon 3e", location: "Boutique Le Sceau, Lyon 3e",
     startAt: daysFromNow(2, 19, 0), maxParticipants: 8,

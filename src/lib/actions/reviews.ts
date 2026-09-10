@@ -4,27 +4,28 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getT } from "@/lib/i18n/server";
 import { reviewSchema } from "@/lib/validation";
-import { playerLevelLabels } from "@/lib/labels";
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function createTradeReviewAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const tradeId = String(formData.get("tradeId") ?? "");
   const parsed = reviewSchema.safeParse({ rating: formData.get("rating"), comment: formData.get("comment") });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
 
   const trade = await prisma.tradeProposal.findUnique({
     where: { id: tradeId },
     include: { items: { include: { gameCopy: { include: { game: true } }, cardCopy: { include: { card: true } } } } },
   });
   if (!trade || (trade.fromUserId !== user.id && trade.toUserId !== user.id)) {
-    return { error: "Échange introuvable" };
+    return { error: t("action.tradeNotFound") };
   }
-  if (trade.status !== "COMPLETED") return { error: "Cet échange n'est pas encore terminé" };
+  if (trade.status !== "COMPLETED") return { error: t("action.tradeNotComplete") };
 
   const toUserId = trade.fromUserId === user.id ? trade.toUserId : trade.fromUserId;
   const gameItem = trade.items.find((i) => i.gameCopy)?.gameCopy;
@@ -44,14 +45,15 @@ export async function createTradeReviewAction(_prevState: ActionState, formData:
       },
     });
   } catch {
-    return { error: "Tu as déjà laissé un avis pour cet échange" };
+    return { error: t("action.reviewExists.trade") };
   }
 
   await notify({
     userId: toUserId,
     kind: "REVIEW_RECEIVED",
-    title: `${user.name} t'a laissé un avis`,
-    body: `${parsed.data.rating}/5 · ${parsed.data.comment.slice(0, 100)}`,
+    title: "notify.review",
+    params: { name: user.name, extrait: `${parsed.data.rating}/5 · ${parsed.data.comment.slice(0, 100)}` },
+    body: "notify.excerpt",
     href: `/profile/${toUserId}`,
   });
 
@@ -60,21 +62,22 @@ export async function createTradeReviewAction(_prevState: ActionState, formData:
 }
 
 export async function createEventReviewAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const t = await getT();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const eventId = String(formData.get("eventId") ?? "");
   const parsed = reviewSchema.safeParse({ rating: formData.get("rating"), comment: formData.get("comment") });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
+  if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: { participants: true },
   });
-  if (!event) return { error: "Table introuvable" };
-  if (event.hostId === user.id) return { error: "Tu ne peux pas t'auto-évaluer" };
+  if (!event) return { error: t("action.eventNotFound") };
+  if (event.hostId === user.id) return { error: t("action.noSelfReview") };
   const isParticipant = event.participants.some((p) => p.userId === user.id);
-  if (!isParticipant) return { error: "Tu dois avoir participé à cette table" };
+  if (!isParticipant) return { error: t("action.mustAttend") };
 
   try {
     await prisma.review.create({
@@ -82,20 +85,23 @@ export async function createEventReviewAction(_prevState: ActionState, formData:
         fromUserId: user.id,
         toUserId: event.hostId,
         eventId: event.id,
-        context: `${event.title} · ${playerLevelLabels[event.level].toLowerCase()}`,
+        // Le contexte est figé au moment de l'avis : il décrit un fait passé,
+        // pas un libellé d'interface, et ne doit donc pas suivre la langue du lecteur.
+        context: `${event.title} · ${event.level}`,
         rating: parsed.data.rating,
         comment: parsed.data.comment,
       },
     });
   } catch {
-    return { error: "Tu as déjà laissé un avis pour cette table" };
+    return { error: t("action.reviewExists.event") };
   }
 
   await notify({
     userId: event.hostId,
     kind: "REVIEW_RECEIVED",
-    title: `${user.name} a noté ta table`,
-    body: `${parsed.data.rating}/5 · ${parsed.data.comment.slice(0, 100)}`,
+    title: "notify.reviewEvent",
+    params: { name: user.name, extrait: `${parsed.data.rating}/5 · ${parsed.data.comment.slice(0, 100)}` },
+    body: "notify.excerpt",
     href: `/profile/${event.hostId}`,
   });
 
