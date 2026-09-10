@@ -556,6 +556,8 @@ export const fr: Dictionary = {
   "bgg.searching": "Recherche…",
   "bgg.empty": "Aucun jeu de ce nom chez BoardGameGeek. Remplis la fiche à la main.",
   "bgg.unreachable": "BoardGameGeek ne répond pas. Remplis la fiche à la main, rien n'est perdu.",
+  "bgg.session": "Ta session n'est plus reconnue. Ouvre un onglet, reconnecte-toi, puis reviens : ce que tu as saisi ici reste en place.",
+  "bgg.failed": "La recherche n'a pas pu aboutir. Remplis la fiche à la main, rien n'est perdu.",
   "bgg.picked": "Fiche reprise : {title}. Tu peux tout corriger ci-dessous.",
   "bgg.players": "joueurs",
   "bgg.credit": "Données et visuels : BoardGameGeek. Usage non commercial.",

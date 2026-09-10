@@ -6,7 +6,8 @@ import { analyserFiches, analyserIdsRecherche, estImageBgg } from "../src/lib/bg
 
 /**
  * Chaîne complète de la recherche BoardGameGeek : requête HTTP, statuts
- * d'erreur, analyse, route, écran.
+ * d'erreur, analyse, action serveur, écran — testée par l'écran, comme on
+ * s'en sert.
  *
  * Le serveur interrogé est un faux BGG local (`tests/faux-bgg.ts`) piloté par
  * `BGG_API_BASE`. L'API réelle n'est pas appelée : elle est lente, elle tombe,
@@ -15,76 +16,17 @@ import { analyserFiches, analyserIdsRecherche, estImageBgg } from "../src/lib/bg
 
 const fixture = (nom: string) => path.join(__dirname, "fixtures", nom);
 
-/** Interroge la route depuis le navigateur, pour que le cookie de session parte. */
+/** Ouvre l'ajout d'un jeu et lance une recherche dans le sélecteur. */
 async function chercher(page: import("@playwright/test").Page, terme: string) {
-  const reponse = await page.goto(`/api/bgg/search?q=${encodeURIComponent(terme)}`);
-  expect(reponse!.status()).toBe(200);
-  return JSON.parse(await page.locator("body").innerText());
+  await page.goto("/shelf/new");
+  await page.fill("#bgg-query", terme);
+  await page.getByRole("button", { name: "Chercher" }).click();
 }
 
 test.describe("Recherche BoardGameGeek", () => {
-  test("une recherche qui aboutit remonte les fiches complètes", async ({ page }) => {
+  test("une recherche qui aboutit pré-remplit le formulaire", async ({ page }) => {
     await login(page, "chloe");
-    const donnees = await chercher(page, "wingspan");
-
-    expect(donnees.statut).toBe("ok");
-    expect(donnees.jeux.length).toBeGreaterThan(0);
-    expect(donnees.jeux[0]).toMatchObject({
-      bggId: 266192, title: "Wingspan", minPlayers: 1, maxPlayers: 5, durationMin: 70,
-    });
-    expect(donnees.jeux[0].image).toContain("cf.geekdo-images.com");
-  });
-
-  test("aucun résultat n'est pas une panne", async ({ page }) => {
-    await login(page, "chloe");
-    const donnees = await chercher(page, "inconnu");
-
-    expect(donnees).toEqual({ jeux: [], statut: "ok" });
-  });
-
-  test("une erreur serveur est annoncée comme telle, pas comme une absence de résultat", async ({ page }) => {
-    await login(page, "chloe");
-    const donnees = await chercher(page, "panne");
-
-    expect(donnees.statut).toBe("injoignable");
-    expect(donnees.detail).toContain("500");
-    expect(donnees.jeux).toEqual([]);
-  });
-
-  test("une réponse encore en préparation (202) est retentée puis signalée", async ({ page }) => {
-    await login(page, "chloe");
-    const donnees = await chercher(page, "attente");
-
-    expect(donnees.statut).toBe("injoignable");
-    expect(donnees.detail).toContain("202");
-  });
-
-  test("un serveur muet ne fait pas attendre indéfiniment", async ({ page }) => {
-    test.setTimeout(30_000);
-    await login(page, "chloe");
-    const donnees = await chercher(page, "lent");
-
-    expect(donnees.statut).toBe("injoignable");
-    // AbortSignal.timeout lève une TimeoutError.
-    expect(donnees.detail).toMatch(/Timeout|abort/i);
-  });
-
-  test("si le filtre par type ne ramène rien, la recherche est retentée sans lui", async ({ page }) => {
-    await login(page, "chloe");
-    const donnees = await chercher(page, "sanstype");
-
-    expect(donnees.statut).toBe("ok");
-    expect(donnees.jeux.length).toBeGreaterThan(0);
-  });
-});
-
-test.describe("Sélecteur dans l'ajout d'un jeu", () => {
-  test("choisir une fiche pré-remplit le formulaire", async ({ page }) => {
-    await login(page, "chloe");
-    await page.goto("/shelf/new");
-
-    await page.fill("#bgg-query", "wingspan");
-    await page.getByRole("button", { name: "Chercher" }).click();
+    await chercher(page, "wingspan");
 
     await page.getByRole("button", { name: /Wingspan/ }).first().click();
 
@@ -92,16 +34,12 @@ test.describe("Sélecteur dans l'ajout d'un jeu", () => {
     await expect(page.locator("#minPlayers")).toHaveValue("1");
     await expect(page.locator("#maxPlayers")).toHaveValue("5");
     await expect(page.locator("#durationMin")).toHaveValue("70");
-    // La jaquette reprise doit être visible, et annoncée comme venant de BGG.
     await expect(page.getByText("Reprise du catalogue BoardGameGeek.")).toBeVisible();
   });
 
-  test("le jeu ajouté garde la jaquette et l'identifiant BoardGameGeek", async ({ page }) => {
+  test("le jeu ajouté garde la jaquette reprise du catalogue", async ({ page }) => {
     await login(page, "marius");
-    await page.goto("/shelf/new");
-
-    await page.fill("#bgg-query", "wingspan");
-    await page.getByRole("button", { name: "Chercher" }).click();
+    await chercher(page, "wingspan");
     await page.getByRole("button", { name: /Wingspan/ }).first().click();
 
     // Un titre unique : le catalogue est partagé et le test doit être rejouable.
@@ -118,12 +56,17 @@ test.describe("Sélecteur dans l'ajout d'un jeu", () => {
     expect(jeu.bggId).toBeNull();
   });
 
-  test("une panne de BoardGameGeek se lit à l'écran, sans bloquer le formulaire", async ({ page }) => {
+  test("aucun résultat le dit, sans parler de panne", async ({ page }) => {
     await login(page, "chloe");
-    await page.goto("/shelf/new");
+    await chercher(page, "inconnu");
 
-    await page.fill("#bgg-query", "panne");
-    await page.getByRole("button", { name: "Chercher" }).click();
+    await expect(page.getByText(/Aucun jeu de ce nom/)).toBeVisible();
+    await expect(page.getByText(/ne répond pas/)).toHaveCount(0);
+  });
+
+  test("une erreur serveur est annoncée comme une panne, avec son motif", async ({ page }) => {
+    await login(page, "chloe");
+    await chercher(page, "panne");
 
     await expect(page.getByText(/BoardGameGeek ne répond pas/)).toBeVisible();
     await expect(page.getByText(/500/)).toBeVisible();
@@ -136,15 +79,54 @@ test.describe("Sélecteur dans l'ajout d'un jeu", () => {
     await expect(page.getByRole("heading", { name: titre, level: 1 })).toBeVisible();
   });
 
-  test("un jeu introuvable chez BoardGameGeek le dit sans parler de panne", async ({ page }) => {
+  test("une réponse encore en préparation (202) est retentée puis signalée", async ({ page }) => {
+    await login(page, "chloe");
+    await chercher(page, "attente");
+
+    await expect(page.getByText(/BoardGameGeek ne répond pas/)).toBeVisible();
+    await expect(page.getByText(/202/)).toBeVisible();
+  });
+
+  test("un serveur muet ne fait pas attendre indéfiniment", async ({ page }) => {
+    test.setTimeout(40_000);
+    await login(page, "chloe");
+    await chercher(page, "lent");
+
+    // AbortSignal.timeout lève une TimeoutError au bout de huit secondes.
+    await expect(page.getByText(/BoardGameGeek ne répond pas/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/Timeout|abort/i)).toBeVisible();
+  });
+
+  test("si le filtre par type ne ramène rien, la recherche est retentée sans lui", async ({ page }) => {
+    await login(page, "chloe");
+    await chercher(page, "sanstype");
+
+    await expect(page.getByRole("button", { name: /Wingspan/ }).first()).toBeVisible();
+  });
+
+  test("une session perdue est annoncée comme telle, pas comme une panne de BoardGameGeek", async ({ page, context }) => {
     await login(page, "chloe");
     await page.goto("/shelf/new");
 
-    await page.fill("#bgg-query", "inconnu");
+    // La page est déjà rendue : la garde de route ne repassera pas. On simule
+    // une session perdue entre l'affichage du formulaire et la recherche —
+    // exactement le cas où l'action doit refuser d'elle-même.
+    await page.fill("#title", "Saisie en cours");
+    await context.clearCookies();
+
+    await page.fill("#bgg-query", "wingspan");
     await page.getByRole("button", { name: "Chercher" }).click();
 
-    await expect(page.getByText(/Aucun jeu de ce nom/)).toBeVisible();
-    await expect(page.getByText(/ne répond pas/)).toHaveCount(0);
+    await expect(page.getByText(/session n'est plus reconnue/)).toBeVisible();
+    await expect(page.getByText(/BoardGameGeek ne répond pas/)).toHaveCount(0);
+    // Ce qui était saisi ne doit pas disparaître.
+    await expect(page.locator("#title")).toHaveValue("Saisie en cours");
+  });
+
+  test("le sélecteur est hors de portée d'un visiteur déconnecté", async ({ page }) => {
+    await page.goto("/shelf/new");
+    await page.waitForURL(/\/login$/);
+    await expect(page.locator("#bgg-query")).toHaveCount(0);
   });
 });
 
@@ -180,22 +162,5 @@ test.describe("Analyse des réponses XML", () => {
     expect(estImageBgg("http://cf.geekdo-images.com/x/img/a.jpg")).toBe(false);
     expect(estImageBgg("https://exemple.test/img/a.jpg")).toBe(false);
     expect(estImageBgg("javascript:alert(1)")).toBe(false);
-  });
-});
-
-test.describe("Accès à la route de recherche", () => {
-  test("la recherche exige une session : l'application n'est pas un relais ouvert", async ({ page }) => {
-    const anonyme = await page.request.get("/api/bgg/search?q=wingspan");
-    expect(anonyme.status()).toBe(401);
-  });
-
-  test("une requête trop courte ne part pas chez BoardGameGeek", async ({ page }) => {
-    await login(page, "chloe");
-
-    // On passe par le navigateur et non par `page.request` : le cookie de
-    // session porte le préfixe `__Host-` (donc `Secure`) dans une compilation
-    // de production, et le client HTTP de Playwright, contrairement à
-    // Chromium, ne fait pas d'exception pour http://127.0.0.1.
-    expect(await chercher(page, "a")).toEqual({ jeux: [], statut: "ok" });
   });
 });

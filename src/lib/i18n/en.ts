@@ -559,6 +559,8 @@ export const en: Dictionary = {
   "bgg.searching": "Searching…",
   "bgg.empty": "No game by that name on BoardGameGeek. Fill the form in by hand.",
   "bgg.unreachable": "BoardGameGeek is not responding. Fill the form in by hand, nothing is lost.",
+  "bgg.session": "Your session is no longer recognised. Sign in again in another tab, then come back: what you typed here stays put.",
+  "bgg.failed": "The search could not go through. Fill the form in by hand, nothing is lost.",
   "bgg.picked": "Details taken from {title}. You can correct anything below.",
   "bgg.players": "players",
   "bgg.credit": "Data and images: BoardGameGeek. Non-commercial use.",

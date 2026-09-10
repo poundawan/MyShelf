@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import { Button, Card, Input, Label } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
-import type { JeuBgg, ResultatRecherche } from "@/lib/bgg";
+import { rechercherBggAction } from "@/lib/actions/bgg";
+import type { JeuBgg } from "@/lib/bgg";
 
 /**
  * Recherche dans le catalogue BoardGameGeek pour pré-remplir la fiche d'un jeu.
@@ -25,13 +26,19 @@ export function BggPicker({ onChoisir }: { onChoisir: (jeu: JeuBgg) => void }) {
     setEnCours(true);
     setMessage(null);
     try {
-      const reponse = await fetch(`/api/bgg/search?q=${encodeURIComponent(q)}`);
-      if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
-      const donnees: ResultatRecherche = await reponse.json();
+      const donnees = await rechercherBggAction(q);
+
+      // Trois issues, trois messages. Présenter une panne comme une absence de
+      // résultat enverrait chercher ailleurs un jeu qui existe ; présenter une
+      // session perdue comme une panne de BoardGameGeek ferait accuser un
+      // service tiers à notre place.
+      if (donnees.statut === "session") {
+        setResultats(null);
+        setMessage(t("bgg.session"));
+        return;
+      }
 
       if (donnees.statut === "injoignable") {
-        // Ne jamais présenter une panne comme une absence de résultat : on
-        // enverrait chercher ailleurs un jeu qui existe.
         setResultats(null);
         setMessage(`${t("bgg.unreachable")}${donnees.detail ? ` (${donnees.detail})` : ""}`);
         return;
@@ -40,9 +47,11 @@ export function BggPicker({ onChoisir }: { onChoisir: (jeu: JeuBgg) => void }) {
       setResultats(donnees.jeux);
       if (donnees.jeux.length === 0) setMessage(t("bgg.empty"));
     } catch (erreur) {
+      // L'action elle-même n'a pas abouti : réseau coupé, ou requête refusée
+      // avant même d'atteindre l'application.
       setResultats(null);
       const detail = erreur instanceof Error ? erreur.message : "";
-      setMessage(`${t("bgg.unreachable")}${detail ? ` (${detail})` : ""}`);
+      setMessage(`${t("bgg.failed")}${detail ? ` (${detail})` : ""}`);
     } finally {
       setEnCours(false);
     }

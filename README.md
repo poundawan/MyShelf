@@ -207,13 +207,21 @@ L'ajout d'un jeu propose de reprendre sa fiche depuis
 nombre de joueurs, durée, âge et jaquette. Tout reste modifiable ensuite, et le
 formulaire fonctionne entièrement à la main si BGG ne répond pas.
 
-- L'appel passe par `/api/bgg/search`, côté serveur : BGG n'envoie pas
-  d'en-tête CORS. Une session est exigée pour que l'application ne devienne pas
-  un relais ouvert, et les réponses sont mises en cache 24 h.
-- **« Aucun résultat » et « BGG n'a pas répondu » sont distingués.** Une panne
-  affichée comme une absence de résultat envoie chercher ailleurs un jeu qui
-  existe ; le message d'erreur porte donc le motif réel (`HTTP 403`,
-  `TimeoutError`…), et le serveur le journalise.
+- L'appel se fait **par une action serveur** (`src/lib/actions/bgg.ts`), pas
+  par une route `/api` interrogée en `fetch`. Une route API est une seconde
+  requête HTTP qui doit ré-établir la session de son côté ; un hébergeur qui
+  intercale une protection de déploiement ne la traite pas comme la navigation
+  qui l'a précédée, et peut la refuser alors même que la page s'est affichée.
+  Tout le reste de l'application passe par des actions serveur : autant
+  emprunter le chemin déjà éprouvé, et exposer un point d'entrée public de
+  moins. La session y est revérifiée — l'action reste une porte ouverte sur
+  Internet.
+- BGG n'envoyant pas d'en-tête CORS, l'appel devait de toute façon partir du
+  serveur. Les réponses sont mises en cache 24 h.
+- **Trois issues, trois messages : « aucun résultat », « BGG n'a pas répondu »,
+  « session perdue ».** Les confondre envoie chercher ailleurs un jeu qui
+  existe, ou fait accuser un service tiers à notre place. Le message porte le
+  motif réel (`HTTP 403`, `TimeoutError`…), et le serveur le journalise.
 - Un en-tête `User-Agent` explicite est envoyé : BGG est derrière Cloudflare,
   qui refuse les clients non identifiés.
 - `BGG_API_BASE` permet de viser un autre serveur — c'est ce dont se servent
