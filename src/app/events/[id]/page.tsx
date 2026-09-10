@@ -36,7 +36,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <div className="flex aspect-[16/5] items-center justify-center bg-surface-2 text-xs uppercase tracking-widest text-ink-soft/40">
+      <div className="flex aspect-[16/5] items-center justify-center bg-surface-2 text-xs uppercase tracking-widest text-ink-soft/65">
         {event.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={event.photoUrl} alt="" className="h-full w-full object-cover" />

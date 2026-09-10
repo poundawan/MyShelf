@@ -77,31 +77,33 @@ enum TradeSide {
 }
 
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  passwordHash     String
-  name             String
-  city             String
-  avatarUrl        String?
-  bio              String?
-  verified         Boolean     @default(false)
-  experienceLevel  PlayerLevel @default(INTERMEDIATE)
-  createdAt        DateTime @default(now())
+  id              String      @id @default(cuid())
+  email           String      @unique
+  passwordHash    String
+  name            String
+  city            String
+  avatarUrl       String?
+  bio             String?
+  verified        Boolean     @default(false)
+  experienceLevel PlayerLevel @default(INTERMEDIATE)
+  createdAt       DateTime    @default(now())
 
-  gameCopies         GameCopy[]
-  gameWants          GameWant[]
-  cardCopies         CardCopy[]
-  cardWants          CardWant[]
-  clubMemberships    ClubMembership[]
-  hostedEvents       Event[]
+  gameCopies          GameCopy[]
+  gameWants           GameWant[]
+  cardCopies          CardCopy[]
+  cardWants           CardWant[]
+  clubMemberships     ClubMembership[]
+  hostedEvents        Event[]
   eventParticipations EventParticipant[]
-  tradesSent         TradeProposal[] @relation("TradesSent")
-  tradesReceived     TradeProposal[] @relation("TradesReceived")
-  reviewsGiven       Review[] @relation("ReviewsGiven")
-  reviewsReceived    Review[] @relation("ReviewsReceived")
-  conversationsA     Conversation[] @relation("ConversationUserA")
-  conversationsB     Conversation[] @relation("ConversationUserB")
-  messages           Message[]
+  tradesSent          TradeProposal[]    @relation("TradesSent")
+  tradesReceived      TradeProposal[]    @relation("TradesReceived")
+  reviewsGiven        Review[]           @relation("ReviewsGiven")
+  reviewsReceived     Review[]           @relation("ReviewsReceived")
+  conversationsA      Conversation[]     @relation("ConversationUserA")
+  conversationsB      Conversation[]     @relation("ConversationUserB")
+  messages            Message[]
+  notifications       Notification[]
+  loginAttempts       LoginAttempt[]
 }
 
 model Game {
@@ -125,14 +127,14 @@ model Game {
 }
 
 model GameCopy {
-  id        String         @id @default(cuid())
+  id        String        @id @default(cuid())
   gameId    String
-  game      Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  game      Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
   ownerId   String
-  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner     User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   condition ItemCondition
-  status    CopyStatus     @default(ON_TABLE)
-  createdAt DateTime       @default(now())
+  status    CopyStatus    @default(ON_TABLE)
+  createdAt DateTime      @default(now())
 
   tradeItems TradeItem[]
 
@@ -153,13 +155,13 @@ model Card {
 }
 
 model CardCopy {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   cardId    String
-  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  card      Card       @relation(fields: [cardId], references: [id], onDelete: Cascade)
   ownerId   String
-  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner     User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   status    CopyStatus @default(ON_TABLE)
-  createdAt DateTime @default(now())
+  createdAt DateTime   @default(now())
 
   tradeItems TradeItem[]
 
@@ -257,17 +259,17 @@ model EventParticipant {
 }
 
 model TradeProposal {
-  id             String      @id @default(cuid())
+  id             String        @id @default(cuid())
   kind           TradeKind
   fromUserId     String
-  fromUser       User        @relation("TradesSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  fromUser       User          @relation("TradesSent", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUserId       String
-  toUser         User        @relation("TradesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  toUser         User          @relation("TradesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
   conversationId String?
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
-  status         TradeStatus @default(PENDING)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  status         TradeStatus   @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   items   TradeItem[]
   reviews Review[]
@@ -290,13 +292,13 @@ model TradeItem {
 }
 
 model Conversation {
-  id         String   @id @default(cuid())
-  userAId    String
-  userA      User     @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
-  userBId    String
-  userB      User     @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userAId   String
+  userA     User     @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId   String
+  userB     User     @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   messages Message[]
   trades   TradeProposal[]
@@ -328,12 +330,56 @@ model Review {
   trade      TradeProposal? @relation(fields: [tradeId], references: [id], onDelete: SetNull)
   eventId    String?
   event      Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  context    String   // ex. "Échange · Trois Comtés", "Cartes · Cendres du Nord"
+  context    String // ex. "Échange · Trois Comtés", "Cartes · Cendres du Nord"
   rating     Int
   comment    String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime       @default(now())
 
   @@unique([fromUserId, tradeId])
   @@unique([fromUserId, eventId])
   @@index([toUserId])
+}
+
+enum NotificationKind {
+  TRADE_PROPOSED
+  TRADE_ACCEPTED
+  TRADE_REJECTED
+  TRADE_COMPLETED
+  MESSAGE_RECEIVED
+  EVENT_JOINED
+  EVENT_CANCELLED
+  REVIEW_RECEIVED
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      NotificationKind
+  title     String
+  body      String?
+  /// Où la notification emmène quand on clique dessus.
+  href      String
+  /// Regroupe les notifications d'une même source (un échange, une
+  /// conversation) pour éviter d'en empiler dix pour le même fil.
+  subjectId String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+/// Tentatives de connexion, pour limiter les essais par force brute.
+/// `email` est conservé même sans compte correspondant : sinon on ne pourrait
+/// pas freiner quelqu'un qui balaie des adresses au hasard.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  succeeded Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
 }

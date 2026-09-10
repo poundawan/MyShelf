@@ -6,7 +6,14 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
-const SESSION_COOKIE = "myshelf_session";
+const EN_PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * Le préfixe `__Host-` impose au navigateur : cookie chiffré, chemin racine et
+ * aucun domaine explicite. Un sous-domaine voisin ne peut donc pas l'écraser.
+ * Il exige HTTPS, on ne l'applique donc qu'en production.
+ */
+const SESSION_COOKIE = EN_PRODUCTION ? "__Host-myshelf_session" : "myshelf_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 30; // 30 jours
 
 function getSecretKey() {
@@ -23,6 +30,14 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
+/** Attributs communs à la pose et à l'effacement du cookie de session. */
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: EN_PRODUCTION,
+  sameSite: "lax",
+  path: "/",
+} as const;
+
 export async function createSession(userId: string) {
   const token = await new SignJWT({ userId })
     .setProtectedHeader({ alg: "HS256" })
@@ -31,18 +46,16 @@ export async function createSession(userId: string) {
     .sign(getSecretKey());
 
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_DURATION_SECONDS,
-  });
+  cookieStore.set(SESSION_COOKIE, token, { ...COOKIE_OPTIONS, maxAge: SESSION_DURATION_SECONDS });
 }
 
 export async function clearSession() {
   const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
+  // On réécrit le cookie vide avec exactement les mêmes attributs plutôt que
+  // d'appeler `delete` : un cookie préfixé `__Host-` n'est effacé que si le
+  // navigateur retrouve `Secure` et `Path=/`, sinon la session survit à la
+  // déconnexion.
+  cookieStore.set(SESSION_COOKIE, "", { ...COOKIE_OPTIONS, maxAge: 0 });
 }
 
 async function getUserIdFromSession(): Promise<string | null> {

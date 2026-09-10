@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { notify } from "@/lib/notifications";
 
 export async function getOrCreateConversation(userId1: string, userId2: string) {
   const [userAId, userBId] = [userId1, userId2].sort();
@@ -28,10 +29,21 @@ export async function sendMessagePlainAction(formData: FormData) {
   const content = String(formData.get("content") ?? "").trim();
   if (!content) return;
 
-  await assertParticipant(conversationId, user.id);
+  const conversation = await assertParticipant(conversationId, user.id);
 
-  await prisma.message.create({ data: { conversationId, senderId: user.id, content: content.slice(0, 2000) } });
+  const texte = content.slice(0, 2000);
+  await prisma.message.create({ data: { conversationId, senderId: user.id, content: texte } });
   await prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
+
+  const destinataire = conversation.userAId === user.id ? conversation.userBId : conversation.userAId;
+  await notify({
+    userId: destinataire,
+    kind: "MESSAGE_RECEIVED",
+    title: `Message de ${user.name}`,
+    body: texte.length > 120 ? `${texte.slice(0, 120)}…` : texte,
+    href: `/messages/${conversationId}`,
+    subjectId: conversationId,
+  });
 
   revalidatePath(`/messages/${conversationId}`);
   revalidatePath(`/trades`);

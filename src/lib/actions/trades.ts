@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getOrCreateConversation } from "@/lib/actions/messages";
+import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function proposeGameTradeAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -42,6 +43,15 @@ export async function proposeGameTradeAction(_prevState: ActionState, formData: 
     await prisma.message.create({ data: { conversationId: conversation.id, senderId: user.id, content: message } });
   }
 
+  await notify({
+    userId: targetCopy.ownerId,
+    kind: "TRADE_PROPOSED",
+    title: `${user.name} te propose un échange`,
+    body: message || null,
+    href: `/trades/${trade.id}`,
+    subjectId: trade.id,
+  });
+
   revalidatePath("/trades");
   redirect(`/trades/${trade.id}`);
 }
@@ -61,6 +71,14 @@ export async function requestCardAction(cardCopyId: string) {
       kind: "CARD", fromUserId: user.id, toUserId: cardCopy.ownerId, conversationId: conversation.id,
       items: { create: [{ cardCopyId: cardCopy.id, offeredBy: "TO" }] },
     },
+  });
+
+  await notify({
+    userId: cardCopy.ownerId,
+    kind: "TRADE_PROPOSED",
+    title: `${user.name} demande une de tes cartes`,
+    href: `/trades/${trade.id}`,
+    subjectId: trade.id,
   });
 
   revalidatePath("/cards");
@@ -95,6 +113,17 @@ export async function respondToTradeAction(tradeId: string, accept: boolean) {
   await prisma.tradeProposal.update({ where: { id: tradeId }, data: { status: accept ? "ACCEPTED" : "REJECTED" } });
   if (accept) await setCopiesStatus(await itemsOf(tradeId), "IN_TRADE");
 
+  await notify({
+    userId: trade.fromUserId,
+    kind: accept ? "TRADE_ACCEPTED" : "TRADE_REJECTED",
+    title: accept
+      ? `${user.name} accepte ton échange`
+      : `${user.name} décline ton échange`,
+    body: accept ? "Convenez d'un lieu et d'une heure par message." : null,
+    href: `/trades/${tradeId}`,
+    subjectId: tradeId,
+  });
+
   revalidatePath(`/trades/${tradeId}`);
   revalidatePath("/trades");
 }
@@ -122,6 +151,16 @@ export async function completeTradeAction(tradeId: string) {
 
   await prisma.tradeProposal.update({ where: { id: tradeId }, data: { status: "COMPLETED" } });
   await setCopiesStatus(await itemsOf(tradeId), "TRADED");
+
+  const autre = trade.fromUserId === user.id ? trade.toUserId : trade.fromUserId;
+  await notify({
+    userId: autre,
+    kind: "TRADE_COMPLETED",
+    title: `Échange terminé avec ${user.name}`,
+    body: "Tu peux maintenant laisser un avis.",
+    href: `/trades/${tradeId}`,
+    subjectId: tradeId,
+  });
 
   revalidatePath(`/trades/${tradeId}`);
   revalidatePath("/trades");

@@ -47,7 +47,7 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
             // eslint-disable-next-line @next/next/no-img-element
             <img src={game.photoUrl} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="text-xs uppercase tracking-widest text-ink-soft/40">visuel boîte 3:4</span>
+            <span className="text-xs uppercase tracking-widest text-ink-soft/65">visuel boîte 3:4</span>
           )}
         </div>
 

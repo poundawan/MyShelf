@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { reviewSchema } from "@/lib/validation";
 import { playerLevelLabels } from "@/lib/labels";
+import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function createTradeReviewAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -46,6 +47,14 @@ export async function createTradeReviewAction(_prevState: ActionState, formData:
     return { error: "Tu as déjà laissé un avis pour cet échange" };
   }
 
+  await notify({
+    userId: toUserId,
+    kind: "REVIEW_RECEIVED",
+    title: `${user.name} t'a laissé un avis`,
+    body: `${parsed.data.rating}/5 · ${parsed.data.comment.slice(0, 100)}`,
+    href: `/profile/${toUserId}`,
+  });
+
   revalidatePath(`/trades/${tradeId}`);
   revalidatePath(`/profile/${toUserId}`);
 }
@@ -81,6 +90,14 @@ export async function createEventReviewAction(_prevState: ActionState, formData:
   } catch {
     return { error: "Tu as déjà laissé un avis pour cette table" };
   }
+
+  await notify({
+    userId: event.hostId,
+    kind: "REVIEW_RECEIVED",
+    title: `${user.name} a noté ta table`,
+    body: `${parsed.data.rating}/5 · ${parsed.data.comment.slice(0, 100)}`,
+    href: `/profile/${event.hostId}`,
+  });
 
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/profile/${event.hostId}`);

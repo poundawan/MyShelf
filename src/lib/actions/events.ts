@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { eventSchema, eventUpdateSchema } from "@/lib/validation";
+import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function createEventAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -105,10 +106,24 @@ export async function joinEventAction(eventId: string) {
   if (event.status !== "ACTIVE") throw new Error("Cet événement n'est plus ouvert");
   if (event.maxParticipants && event.participants.length >= event.maxParticipants) throw new Error("Complet");
 
+  const dejaInscrit = event.participants.some((p) => p.userId === user.id);
+
   await prisma.eventParticipant.upsert({
     where: { eventId_userId: { eventId, userId: user.id } },
     update: {}, create: { eventId, userId: user.id },
   });
+
+  // On ne prévient l'organisateur que d'une vraie nouvelle inscription, et
+  // jamais de la sienne à la création de la table.
+  if (!dejaInscrit && event.hostId !== user.id) {
+    await notify({
+      userId: event.hostId,
+      kind: "EVENT_JOINED",
+      title: `${user.name} rejoint « ${event.title} »`,
+      href: `/events/${eventId}`,
+      subjectId: eventId,
+    });
+  }
 
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/events");
@@ -137,6 +152,19 @@ export async function cancelEventAction(eventId: string) {
   if (event.hostId !== user.id) throw new Error("Action non autorisée");
 
   await prisma.event.update({ where: { id: eventId }, data: { status: "CANCELLED" } });
+
+  // Prévenir ceux qui avaient réservé leur soirée est le minimum.
+  for (const participant of event.participants) {
+    if (participant.userId === user.id) continue;
+    await notify({
+      userId: participant.userId,
+      kind: "EVENT_CANCELLED",
+      title: `« ${event.title} » est annulée`,
+      body: `${user.name} a annulé la table.`,
+      href: `/events/${eventId}`,
+      subjectId: eventId,
+    });
+  }
 
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/events");

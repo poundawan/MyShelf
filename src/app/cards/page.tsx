@@ -72,7 +72,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
             const km = pseudoDistanceKm(copy.id);
             return (
               <Card key={copy.id} className="overflow-hidden">
-                <div className="relative flex aspect-[3/4] items-center justify-center bg-surface-2 text-xs uppercase tracking-widest text-ink-soft/40">
+                <div className="relative flex aspect-[3/4] items-center justify-center bg-surface-2 text-xs uppercase tracking-widest text-ink-soft/65">
                   scan carte
                   <span className={cn("absolute right-2 top-2")}>
                     <Badge variant={rarityBadge[copy.card.rarity]}>{cardRarityLabels[copy.card.rarity]}</Badge>

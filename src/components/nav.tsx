@@ -4,7 +4,8 @@ import { logoutAction } from "@/lib/actions/auth";
 import { prisma } from "@/lib/prisma";
 import { Button, Avatar } from "@/components/ui";
 import { computeLevel } from "@/lib/labels";
-import { ChevronDown, Dice5, Library, Search, ArrowLeftRight, Layers, CalendarDays, Mail, LogOut } from "lucide-react";
+import { countUnread } from "@/lib/notifications";
+import { ChevronDown, Dice5, Library, Search, ArrowLeftRight, Layers, CalendarDays, Mail, LogOut, Bell } from "lucide-react";
 
 // `short` est le libellé de la barre d'onglets mobile : six colonnes doivent
 // tenir sans rognage dès 320 px de large.
@@ -22,13 +23,17 @@ export async function Nav() {
   let pendingTrades = 0;
   let level = 1;
 
+  let unreadNotifications = 0;
+
   if (user) {
-    const [pending, completedCount] = await Promise.all([
+    const [pending, completedCount, unread] = await Promise.all([
       prisma.tradeProposal.count({ where: { toUserId: user.id, status: "PENDING" } }),
       prisma.tradeProposal.count({ where: { OR: [{ fromUserId: user.id }, { toUserId: user.id }], status: "COMPLETED" } }),
+      countUnread(user.id),
     ]);
     pendingTrades = pending;
     level = computeLevel(completedCount).level;
+    unreadNotifications = unread;
   }
 
   return (
@@ -84,6 +89,23 @@ export async function Nav() {
                   </Link>
                 </div>
               </details>
+
+              <Link
+                href="/notifications"
+                aria-label={
+                  unreadNotifications > 0
+                    ? `Notifications, ${unreadNotifications} non lue${unreadNotifications > 1 ? "s" : ""}`
+                    : "Notifications"
+                }
+                className="relative flex size-9 flex-none items-center justify-center rounded-sm text-cream-soft transition-colors hover:bg-black/10 hover:text-cream"
+              >
+                <Bell className="size-[18px]" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute right-1 top-1 min-w-4 rounded-full bg-rust px-1 text-[9px] font-bold leading-4 text-cream">
+                    {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                  </span>
+                )}
+              </Link>
 
               <Link href={`/profile/${user.id}`} className="flex items-center gap-2 rounded-sm px-1.5 py-1.5 hover:bg-black/10 sm:px-2">
                 <Avatar name={user.name} size={30} />

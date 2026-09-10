@@ -245,7 +245,8 @@ test.describe("Session", () => {
     // On remplace la signature du jeton par une valeur arbitraire : la
     // vérification JWT doit échouer et la session être considérée absente.
     const cookies = await context.cookies();
-    const session = cookies.find((c) => c.name === "myshelf_session");
+    // Le nom porte le préfixe `__Host-` en production, pas en développement.
+    const session = cookies.find((c) => c.name.endsWith("myshelf_session"));
     expect(session).toBeDefined();
 
     const [entete, charge] = session!.value.split(".");

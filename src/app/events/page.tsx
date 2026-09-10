@@ -42,7 +42,7 @@ export default async function EventsPage({
 
       <form className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
         <Input name="q" defaultValue={q} placeholder="Rechercher une table..." />
-        <Select name="type" defaultValue={type ?? ""} className="sm:w-48">
+        <Select name="type" defaultValue={type ?? ""} aria-label="Filtrer par type de jeu" className="sm:w-48">
           <option value="">Tous les types</option>
           {Object.entries(eventTypeLabels).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>

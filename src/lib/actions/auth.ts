@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createSession, clearSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { loginSchema, registerSchema } from "@/lib/validation";
+import { verifierLimiteConnexion, enregistrerTentative, purgerTentativesAnciennes } from "@/lib/rate-limit";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -47,10 +48,23 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
 
   const { email, password } = parsed.data;
 
+  const limite = await verifierLimiteConnexion(email);
+  if (limite.bloque) {
+    return {
+      error: `Trop de tentatives. Réessaie dans ${limite.minutes} minute${limite.minutes > 1 ? "s" : ""}.`,
+    };
+  }
+
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    await enregistrerTentative(email, false, user?.id);
+    // Message volontairement identique dans les deux cas : préciser que
+    // l'adresse est inconnue reviendrait à confirmer qui a un compte ici.
     return { error: "E-mail ou mot de passe incorrect" };
   }
+
+  await enregistrerTentative(email, true, user.id);
+  void purgerTentativesAnciennes();
 
   await createSession(user.id);
   redirect("/");

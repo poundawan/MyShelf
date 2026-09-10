@@ -18,7 +18,7 @@ export function Button({
         variant === "primary" && "bg-gold text-gold-ink hover:bg-[#F0B94F]",
         variant === "secondary" && "bg-transparent text-ink border border-border-strong hover:border-gold",
         variant === "ghost" && "text-ink-soft hover:text-ink hover:bg-white/5",
-        variant === "danger" && "bg-transparent text-rust border border-rust hover:bg-rust-soft",
+        variant === "danger" && "bg-rust text-cream hover:bg-[#a03f29]",
         className,
       )}
       {...props}

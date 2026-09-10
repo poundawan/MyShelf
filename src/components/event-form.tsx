@@ -143,7 +143,7 @@ export function EventForm({
       <div className="lg:sticky lg:top-20">
         <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-soft">Aperçu de la carte</div>
         <Card className="overflow-hidden">
-          <div className="flex aspect-[4/3] items-center justify-center bg-surface-2 text-xs uppercase tracking-widest text-ink-soft/40">
+          <div className="flex aspect-[4/3] items-center justify-center bg-surface-2 text-xs uppercase tracking-widest text-ink-soft/65">
             visuel évènement
           </div>
           <div className="p-4">

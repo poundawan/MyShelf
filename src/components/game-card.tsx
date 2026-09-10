@@ -29,7 +29,7 @@ export function GameCopyCard({ copy, editable }: { copy: GameCopyCardData; edita
             // eslint-disable-next-line @next/next/no-img-element
             <img src={copy.game.photoUrl} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="text-xs uppercase tracking-widest text-ink-soft/40">visuel boîte</span>
+            <span className="text-xs uppercase tracking-widest text-ink-soft/65">visuel boîte</span>
           )}
         </div>
         <div className="p-4 pb-2">
