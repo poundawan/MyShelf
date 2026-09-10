@@ -40,7 +40,7 @@ export function TradeWizard({ targetCopyId, targetOwnerName, myCopies }: { targe
           <h2 className="font-display text-xl text-cream">Qu&apos;est-ce que tu mets sur la table ?</h2>
           {myCopies.length === 0 ? (
             <p className="mt-4 text-sm text-ink-soft">
-              Tu n&apos;as pas encore de jeu disponible. Ajoutes-en un depuis ta ludothèque.
+              Tu n&apos;as pas encore de jeu disponible. Ajoutes-en un depuis ton étagère.
             </p>
           ) : (
             <>

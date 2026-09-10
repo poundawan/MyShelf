@@ -69,7 +69,7 @@ export default function NewGamePage() {
 
           <ErrorText>{state?.error}</ErrorText>
           <Button type="submit" disabled={pending} className="mt-2">
-            {pending ? "Ajout..." : "Ajouter à ma ludothèque"}
+            {pending ? "Ajout..." : "Ajouter à mon étagère"}
           </Button>
         </form>
       </Card>

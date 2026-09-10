@@ -7,7 +7,7 @@ import { computeLevel } from "@/lib/labels";
 import { ChevronDown, Dice5, Library, Search, ArrowLeftRight, Layers, CalendarDays, Mail } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/shelf", label: "Ma ludothèque", icon: Library },
+  { href: "/shelf", label: "Mon étagère", icon: Library },
   { href: "/search", label: "Recherche", icon: Search },
   { href: "/trades", label: "Échanges", icon: ArrowLeftRight, badgeKey: "trades" as const },
   { href: "/cards", label: "Cartes", icon: Layers },

@@ -25,7 +25,7 @@ export default async function TradesPage() {
 
       {trades.length === 0 ? (
         <Card className="mt-8 p-10 text-center text-ink-soft">
-          Aucun échange pour l&apos;instant. Parcours <Link href="/shelf" className="font-bold text-gold hover:underline">ta ludothèque</Link> ou <Link href="/cards" className="font-bold text-gold hover:underline">les cartes</Link> pour en lancer un.
+          Aucun échange pour l&apos;instant. Parcours <Link href="/shelf" className="font-bold text-gold hover:underline">ton étagère</Link> ou <Link href="/cards" className="font-bold text-gold hover:underline">les cartes</Link> pour en lancer un.
         </Card>
       ) : (
         <div className="mt-8 flex flex-col gap-3">
