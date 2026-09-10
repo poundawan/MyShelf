@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { login, one, rows, uniqueEmail, datetimeLocal } from "./helpers";
 import { inspecterImage } from "../src/lib/image-header";
-import { analyserFiches, analyserIdsRecherche, estImageBgg } from "../src/lib/bgg";
 
 /**
  * Envoi de photos (avatar, salle d'une table, jaquette d'un jeu) et reprise
@@ -257,57 +256,5 @@ test.describe("Route de service des photos", () => {
     const entetes = (await page.request.get(avatarUrl)).headers();
     expect(entetes["x-content-type-options"]).toBe("nosniff");
     expect(entetes["content-security-policy"]).toContain("sandbox");
-  });
-});
-
-test.describe("Catalogue BoardGameGeek", () => {
-  test("l'analyse d'une réponse /search donne les identifiants", () => {
-    const xml = readFileSync(fixture("bgg-search.xml"), "utf8");
-    expect(analyserIdsRecherche(xml)).toEqual([266192, 300442, 13]);
-  });
-
-  test("l'analyse d'une réponse /thing donne les fiches", () => {
-    const fiches = analyserFiches(readFileSync(fixture("bgg-thing.xml"), "utf8"));
-
-    expect(fiches).toHaveLength(3);
-    expect(fiches[0]).toMatchObject({
-      bggId: 266192, title: "Wingspan", year: 2019,
-      minPlayers: 1, maxPlayers: 5, durationMin: 70, minAge: 10,
-    });
-    // Le nom « primary » fait foi, même s'il arrive après un nom alternatif,
-    // et les entités XML doivent être décodées.
-    expect(fiches[1].title).toBe("Carcassonne: Chasseurs & Cueilleurs");
-    expect(fiches[2].title).toBe("Jeu à l'image douteuse");
-  });
-
-  test("une jaquette qui ne vient pas de BoardGameGeek est écartée", () => {
-    const fiches = analyserFiches(readFileSync(fixture("bgg-thing.xml"), "utf8"));
-
-    // La troisième fiche annonce une vignette en clair et une image en
-    // « javascript: » : aucune des deux ne doit ressortir.
-    expect(fiches[2].thumbnail).toBeNull();
-    expect(fiches[2].image).toBeNull();
-
-    expect(estImageBgg("https://cf.geekdo-images.com/x/img/a.jpg")).toBe(true);
-    expect(estImageBgg("http://cf.geekdo-images.com/x/img/a.jpg")).toBe(false);
-    expect(estImageBgg("https://exemple.test/img/a.jpg")).toBe(false);
-    expect(estImageBgg("javascript:alert(1)")).toBe(false);
-  });
-
-  test("la recherche exige une session : l'application n'est pas un relais ouvert", async ({ page }) => {
-    const anonyme = await page.request.get("/api/bgg/search?q=wingspan");
-    expect(anonyme.status()).toBe(401);
-  });
-
-  test("une requête trop courte ne part pas chez BoardGameGeek", async ({ page }) => {
-    await login(page, "chloe");
-
-    // On passe par le navigateur et non par `page.request` : le cookie de
-    // session porte le préfixe `__Host-` (donc `Secure`) dans une compilation
-    // de production, et le client HTTP de Playwright, contrairement à
-    // Chromium, ne fait pas d'exception pour http://127.0.0.1.
-    const reponse = await page.goto("/api/bgg/search?q=a");
-    expect(reponse!.status()).toBe(200);
-    expect(JSON.parse(await page.locator("body").innerText())).toEqual({ jeux: [] });
   });
 });

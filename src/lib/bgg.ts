@@ -10,7 +10,20 @@
  * membres à un tiers.
  */
 
-const BASE = "https://boardgamegeek.com/xmlapi2";
+/**
+ * Racine de l'API. Surchargeable par `BGG_API_BASE` : les tests pointent vers
+ * un faux BoardGameGeek local, ce qui permet de vérifier toute la chaîne
+ * (requête, statuts d'erreur, analyse) sans dépendre d'un service tiers ni
+ * d'un accès réseau sortant.
+ */
+const BASE = process.env.BGG_API_BASE || "https://boardgamegeek.com/xmlapi2";
+
+/**
+ * BoardGameGeek est derrière Cloudflare, qui refuse les clients sans
+ * identification. Sans cet en-tête, la réponse peut être un 403 — que rien ne
+ * distinguerait d'une recherche sans résultat.
+ */
+const AGENT = "MyShelf/1.0 (+https://github.com/poundawan/MyShelf)";
 
 /** BGG est lent quand son cache est froid ; au-delà, on rend la main. */
 const DELAI_MS = 8000;
@@ -38,23 +51,48 @@ export type JeuBgg = {
   minAge: number | null;
 };
 
-/** Recherche par titre, puis récupération des fiches en un seul appel. */
-export async function rechercherJeuxBgg(requete: string): Promise<JeuBgg[]> {
-  const terme = requete.trim();
-  if (terme.length < 2) return [];
+/**
+ * Issue d'une recherche.
+ *
+ * « Aucun jeu de ce nom » et « BoardGameGeek n'a pas répondu » sont deux
+ * choses différentes, et les confondre laisse la personne chercher en boucle
+ * un jeu qui existe. Le statut voyage donc jusqu'à l'écran, et `detail` dit
+ * ce qui a échoué — c'est le seul moyen de diagnostiquer depuis un poste qui
+ * n'a pas le même accès réseau que le serveur.
+ */
+export type ResultatRecherche = {
+  jeux: JeuBgg[];
+  statut: "ok" | "injoignable";
+  detail?: string;
+};
 
-  const xmlRecherche = await recuperer(
+/** Recherche par titre, puis récupération des fiches en un seul appel. */
+export async function rechercherJeuxBgg(requete: string): Promise<ResultatRecherche> {
+  const terme = requete.trim();
+  if (terme.length < 2) return { jeux: [], statut: "ok" };
+
+  const recherche = await recuperer(
     `${BASE}/search?type=boardgame,boardgameexpansion&query=${encodeURIComponent(terme)}`,
   );
-  if (!xmlRecherche) return [];
+  if (!recherche.ok) return { jeux: [], statut: "injoignable", detail: recherche.detail };
 
-  const ids = analyserIdsRecherche(xmlRecherche).slice(0, MAX_RESULTATS);
-  if (ids.length === 0) return [];
+  let ids = analyserIdsRecherche(recherche.xml);
 
-  const xmlFiches = await recuperer(`${BASE}/thing?id=${ids.join(",")}`);
-  if (!xmlFiches) return [];
+  // Le filtre par type est la partie la plus fragile de la requête : si elle
+  // ne ramène rien, on retente sans, plutôt que d'annoncer que le jeu
+  // n'existe pas.
+  if (ids.length === 0) {
+    const large = await recuperer(`${BASE}/search?query=${encodeURIComponent(terme)}`);
+    if (large.ok) ids = analyserIdsRecherche(large.xml);
+  }
 
-  return analyserFiches(xmlFiches);
+  ids = ids.slice(0, MAX_RESULTATS);
+  if (ids.length === 0) return { jeux: [], statut: "ok" };
+
+  const fiches = await recuperer(`${BASE}/thing?id=${ids.join(",")}`);
+  if (!fiches.ok) return { jeux: [], statut: "injoignable", detail: fiches.detail };
+
+  return { jeux: analyserFiches(fiches.xml), statut: "ok" };
 }
 
 /**
@@ -72,23 +110,47 @@ export function analyserFiches(xml: string): JeuBgg[] {
   return extraireItems(xml).map(lireFiche).filter((jeu): jeu is JeuBgg => jeu !== null);
 }
 
-async function recuperer(url: string): Promise<string | null> {
-  try {
-    const reponse = await fetch(url, {
-      headers: { Accept: "application/xml" },
-      signal: AbortSignal.timeout(DELAI_MS),
-      // Les fiches BGG ne bougent pas d'un jour à l'autre.
-      next: { revalidate: 60 * 60 * 24 },
-    });
-    // 202 : BGG a mis la demande en file d'attente. On ne fait pas patienter,
-    // la personne relancera sa recherche.
-    if (!reponse.ok || reponse.status === 202) return null;
-    return await reponse.text();
-  } catch {
-    // Réseau coupé, délai dépassé, BGG en maintenance : le formulaire doit
-    // rester utilisable à la main.
-    return null;
+type Recuperation = { ok: true; xml: string } | { ok: false; detail: string };
+
+/** Nombre de tentatives quand BGG met la demande en file d'attente (202). */
+const TENTATIVES_202 = 2;
+
+async function recuperer(url: string): Promise<Recuperation> {
+  for (let tentative = 1; tentative <= TENTATIVES_202; tentative++) {
+    try {
+      const reponse = await fetch(url, {
+        headers: { Accept: "application/xml, text/xml", "User-Agent": AGENT },
+        signal: AbortSignal.timeout(DELAI_MS),
+        // Les fiches BGG ne bougent pas d'un jour à l'autre.
+        next: { revalidate: 60 * 60 * 24 },
+      });
+
+      // 202 : BGG a accepté la demande mais la prépare encore. Une seule
+      // relance, sinon on rend la main plutôt que de faire attendre.
+      if (reponse.status === 202) {
+        if (tentative < TENTATIVES_202) {
+          await new Promise((r) => setTimeout(r, 1200));
+          continue;
+        }
+        return { ok: false, detail: "HTTP 202 (BGG prépare encore la réponse)" };
+      }
+
+      if (!reponse.ok) {
+        const detail = `HTTP ${reponse.status}`;
+        console.error(`BoardGameGeek a refusé ${url} : ${detail}`);
+        return { ok: false, detail };
+      }
+
+      return { ok: true, xml: await reponse.text() };
+    } catch (erreur) {
+      // Réseau coupé, délai dépassé, DNS, politique de sortie : le formulaire
+      // doit rester utilisable à la main, mais on dit lequel.
+      const detail = erreur instanceof Error ? `${erreur.name}: ${erreur.message}` : "erreur inconnue";
+      console.error(`BoardGameGeek injoignable sur ${url} — ${detail}`);
+      return { ok: false, detail };
+    }
   }
+  return { ok: false, detail: "HTTP 202" };
 }
 
 type Item = { entete: string; corps: string };

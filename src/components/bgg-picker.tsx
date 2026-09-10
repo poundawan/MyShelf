@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import { Button, Card, Input, Label } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
-import type { JeuBgg } from "@/lib/bgg";
+import type { JeuBgg, ResultatRecherche } from "@/lib/bgg";
 
 /**
  * Recherche dans le catalogue BoardGameGeek pour pré-remplir la fiche d'un jeu.
@@ -26,15 +26,23 @@ export function BggPicker({ onChoisir }: { onChoisir: (jeu: JeuBgg) => void }) {
     setMessage(null);
     try {
       const reponse = await fetch(`/api/bgg/search?q=${encodeURIComponent(q)}`);
-      if (!reponse.ok) throw new Error(String(reponse.status));
-      const donnees: { jeux: JeuBgg[] } = await reponse.json();
+      if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
+      const donnees: ResultatRecherche = await reponse.json();
+
+      if (donnees.statut === "injoignable") {
+        // Ne jamais présenter une panne comme une absence de résultat : on
+        // enverrait chercher ailleurs un jeu qui existe.
+        setResultats(null);
+        setMessage(`${t("bgg.unreachable")}${donnees.detail ? ` (${donnees.detail})` : ""}`);
+        return;
+      }
+
       setResultats(donnees.jeux);
       if (donnees.jeux.length === 0) setMessage(t("bgg.empty"));
-    } catch {
-      // BGG tombe régulièrement, et cette session peut n'avoir aucun accès
-      // sortant : le formulaire manuel reste la porte de sortie.
+    } catch (erreur) {
       setResultats(null);
-      setMessage(t("bgg.unreachable"));
+      const detail = erreur instanceof Error ? erreur.message : "";
+      setMessage(`${t("bgg.unreachable")}${detail ? ` (${detail})` : ""}`);
     } finally {
       setEnCours(false);
     }

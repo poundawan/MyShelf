@@ -15,8 +15,9 @@ export async function GET(request: Request) {
   if (!user) return Response.json({ erreur: "unauthorized" }, { status: 401 });
 
   const requete = new URL(request.url).searchParams.get("q") ?? "";
-  if (requete.trim().length < 2) return Response.json({ jeux: [] });
+  if (requete.trim().length < 2) return Response.json({ jeux: [], statut: "ok" });
 
-  const jeux = await rechercherJeuxBgg(requete);
-  return Response.json({ jeux });
+  // Le statut voyage jusqu'à l'écran : « aucun résultat » et « BGG n'a pas
+  // répondu » doivent se lire différemment.
+  return Response.json(await rechercherJeuxBgg(requete));
 }

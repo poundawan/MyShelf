@@ -108,14 +108,17 @@ La suite couvre les 20 écrans de l'application, sur trois niveaux :
 | `tests/securite.spec.ts` | Limitation des tentatives de connexion, en-têtes HTTP, cookie de session. |
 | `tests/accessibilite.spec.ts` | axe-core (WCAG 2.1 A/AA) sur chaque écran, navigation au clavier, libellés de formulaire. |
 | `tests/langue.spec.ts` | Bascule français/anglais, y compris les messages de validation et les notifications ; langues de jeu d'une table. |
-| `tests/photos.spec.ts` | Envoi d'un avatar, d'une salle et d'une jaquette, refus d'un fichier qui n'est pas une image, suppression de l'ancienne photo, en-têtes de la route de service, analyse des réponses BoardGameGeek. |
+| `tests/photos.spec.ts` | Envoi d'un avatar, d'une salle et d'une jaquette, refus d'un fichier qui n'est pas une image, suppression de l'ancienne photo, en-têtes de la route de service. |
+| `tests/bgg.spec.ts` | Recherche BoardGameGeek de bout en bout contre un faux serveur local : réponse normale, aucun résultat, HTTP 500, HTTP 202, serveur muet, filtre par type infructueux, puis le sélecteur à l'écran. |
 
 Chaque test vérifie à la fois l'écran et l'état réel en base : un affichage peut mentir, pas la
 base de données.
 
-Les appels réseau vers BoardGameGeek ne sont pas rejoués : l'analyse de leurs réponses est
-vérifiée sur des fichiers d'exemple (`tests/fixtures/bgg-*.xml`), et la route de recherche est
-testée pour ce qui dépend de nous — la session exigée, la requête trop courte qui ne part pas.
+L'API BoardGameGeek n'est jamais appelée par les tests : `tests/faux-bgg.ts` rejoue ses réponses,
+**pannes comprises**, et `BGG_API_BASE` y dirige l'application. Le terme cherché sert
+d'aiguillage — `panne` renvoie un 500, `attente` un 202, `lent` ne répond jamais. Toute la chaîne
+est ainsi couverte (requête, statuts d'erreur, analyse, écran) sans dépendre d'un service tiers
+ni d'un accès réseau sortant.
 
 ### Lancer les tests
 
@@ -207,6 +210,14 @@ formulaire fonctionne entièrement à la main si BGG ne répond pas.
 - L'appel passe par `/api/bgg/search`, côté serveur : BGG n'envoie pas
   d'en-tête CORS. Une session est exigée pour que l'application ne devienne pas
   un relais ouvert, et les réponses sont mises en cache 24 h.
+- **« Aucun résultat » et « BGG n'a pas répondu » sont distingués.** Une panne
+  affichée comme une absence de résultat envoie chercher ailleurs un jeu qui
+  existe ; le message d'erreur porte donc le motif réel (`HTTP 403`,
+  `TimeoutError`…), et le serveur le journalise.
+- Un en-tête `User-Agent` explicite est envoyé : BGG est derrière Cloudflare,
+  qui refuse les clients non identifiés.
+- `BGG_API_BASE` permet de viser un autre serveur — c'est ce dont se servent
+  les tests.
 - Une jaquette n'est recopiée que si son URL est en HTTPS **et** sur un hôte de
   BGG — le champ est caché, donc falsifiable.
 - `Game.bggId` est unique : deux personnes qui importent le même jeu partagent
