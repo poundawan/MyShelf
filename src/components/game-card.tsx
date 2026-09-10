@@ -22,7 +22,7 @@ export function GameCopyCard({ copy, editable }: { copy: GameCopyCardData; edita
   const onTable = copy.status === "ON_TABLE";
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden" data-testid="game-copy" data-copy-id={copy.id}>
       <Link href={`/games/${copy.game.id}`} className="block">
         <div className="flex aspect-[4/3] items-center justify-center bg-surface-2 text-5xl">
           {copy.game.photoUrl ? (

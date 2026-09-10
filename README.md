@@ -80,6 +80,46 @@ Stats (note moyenne, échanges, tables ouvertes), avis reçus, "jetons" (badges 
 identité vérifiée, nombre d'échanges, hôtesse de table, accueil des débutants) et progression de
 niveau.
 
+## Tests
+
+La suite couvre les 20 écrans de l'application, sur trois niveaux :
+
+| Fichier | Ce qui est vérifié |
+| --- | --- |
+| `tests/rendu.spec.ts` | Chaque écran s'affiche avec son contenu, sans erreur JavaScript ni débordement horizontal. Rejoué sur bureau **et** sur mobile. |
+| `tests/parcours.spec.ts` | Les scénarios complets : inscription, ajout d'un jeu, échange proposé → accepté → terminé → noté, table ouverte/rejointe/annulée, messages, liste de souhaits, édition de profil, filtres de recherche. |
+| `tests/permissions.spec.ts` | Ce qu'un membre **ne peut pas** faire : lire l'échange ou la conversation de quelqu'un d'autre, accepter une proposition qui ne lui est pas adressée, annuler la table d'un autre, agir sans session ou avec un cookie falsifié. |
+
+Chaque test vérifie à la fois l'écran et l'état réel en base : un affichage peut mentir, pas la
+base de données.
+
+### Lancer les tests
+
+Il faut une base Postgres locale **dédiée**, dont le nom se termine par `_test` :
+
+```bash
+createdb myshelf_test          # une seule fois
+npm test                       # toute la suite
+npm test -- --project=bureau   # bureau uniquement, plus rapide
+npm run test:ui                # mode interactif, pour explorer un échec
+npm run test:report            # ouvrir le dernier rapport HTML
+```
+
+Les paramètres de connexion sont dans `.env.test` (base locale jetable, aucun secret). Avant
+chaque exécution, `tests/global-setup.ts` rejoue les migrations à vide puis relance le seed, afin
+que les tests partent toujours du même état. Ce fichier **refuse de démarrer** si le nom de la
+base ne finit pas par `_test` : la base de développement et celle de production sont hors
+d'atteinte.
+
+Playwright construit et démarre lui-même l'application en mode production sur le port 3100 — c'est
+la même commande que celle exécutée par Vercel, pas le serveur de développement.
+
+### Intégration continue
+
+`.github/workflows/ci.yml` rejoue lint + build + toute la suite à chaque push, avec un conteneur
+Postgres. En cas d'échec, le rapport Playwright (captures, vidéos, traces) est déposé en artefact
+du run.
+
 ## Modèle de données
 
 Voir `prisma/schema.prisma` :
@@ -101,6 +141,6 @@ d'occurrences pour les tables récurrentes (champ informatif seulement).
 
 - Vraie géolocalisation (adresse ou position) à la place des distances factices.
 - Upload de photo réel (au lieu d'une URL).
-- Écriture d'avis depuis l'app (actuellement affichés en lecture seule, issus du seed).
 - Page dédiée par club (actuellement teaser sur l'accueil + résultat de recherche uniquement).
+- Modification et suppression d'un jeu, d'une carte ou d'une table depuis l'interface.
 - Notifications (e-mail ou push).

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  verification:
+    name: Lint, build et tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: myshelf
+          POSTGRES_PASSWORD: myshelf
+          # Le nom doit finir par `_test` : tests/global-setup.ts refuse
+          # d'effacer une base dont ce n'est pas le cas.
+          POSTGRES_DB: myshelf_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U myshelf"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://myshelf:myshelf@127.0.0.1:5432/myshelf_test
+      DIRECT_URL: postgresql://myshelf:myshelf@127.0.0.1:5432/myshelf_test
+      AUTH_SECRET: secret-de-ci-sans-valeur-en-production-0123456789
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` déclenche `postinstall` → `prisma generate`, indispensable
+      # avant le lint et le build (le client Prisma est un fichier généré).
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Installer le navigateur de test
+        run: npx playwright install --with-deps chromium
+
+      # Le webServer de Playwright construit et démarre l'application, et
+      # tests/global-setup.ts remet la base à zéro puis la re-sème.
+      - name: Tests bout en bout
+        run: npm test
+
+      - name: Conserver le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-playwright
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
