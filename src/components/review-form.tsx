@@ -24,13 +24,16 @@ export function ReviewForm({
       <input type="hidden" name={hiddenField} value={hiddenValue} />
       <input type="hidden" name="rating" value={rating} />
       <p className="text-sm font-bold text-cream">{title}</p>
-      <div className="flex gap-1">
+      <div className="-mx-1 flex">
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
             onClick={() => setRating(n)}
-            className={cn("text-2xl leading-none transition-colors", n <= rating ? "text-gold" : "text-border-strong")}
+            className={cn(
+              "flex size-10 items-center justify-center text-2xl leading-none transition-colors",
+              n <= rating ? "text-gold" : "text-border-strong",
+            )}
             aria-label={`${n} étoile${n > 1 ? "s" : ""}`}
           >
             ★

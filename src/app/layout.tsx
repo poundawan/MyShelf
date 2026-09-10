@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bevan, Karla } from "next/font/google";
 import { Nav } from "@/components/nav";
 import "./globals.css";
@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   title: "MyShelf — échange ludique entre joueurs",
   description:
     "Échange tes jeux de société, jeux de rôle et cartes, rejoins un club, ouvre une table.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Couleur de la barre d'adresse mobile, accordée au bandeau bois.
+  themeColor: "#8a5a34",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

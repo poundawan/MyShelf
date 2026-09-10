@@ -14,7 +14,7 @@ export function Button({
     <button
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-sm font-bold tracking-wide transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
-        size === "sm" ? "px-3.5 py-1.5 text-xs" : "px-5 py-2.5 text-sm",
+        size === "sm" ? "px-3.5 py-2 text-xs" : "px-5 py-2.5 text-sm",
         variant === "primary" && "bg-gold text-gold-ink hover:bg-[#F0B94F]",
         variant === "secondary" && "bg-transparent text-ink border border-border-strong hover:border-gold",
         variant === "ghost" && "text-ink-soft hover:text-ink hover:bg-white/5",

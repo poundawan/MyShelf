@@ -77,7 +77,7 @@ export default async function SearchPage({
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <div className="grid grid-cols-1 gap-8 sm:grid-cols-[220px_1fr]">
+      <div className="grid grid-cols-1 gap-8 sm:grid-cols-[220px_minmax(0,1fr)]">
         <div>
           <div className="text-xs font-bold uppercase tracking-widest text-gold">Exploration du plateau</div>
           <h1 className="mt-1 font-display text-3xl text-cream">Recherche</h1>

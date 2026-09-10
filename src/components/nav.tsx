@@ -4,15 +4,17 @@ import { logoutAction } from "@/lib/actions/auth";
 import { prisma } from "@/lib/prisma";
 import { Button, Avatar } from "@/components/ui";
 import { computeLevel } from "@/lib/labels";
-import { ChevronDown, Dice5, Library, Search, ArrowLeftRight, Layers, CalendarDays, Mail } from "lucide-react";
+import { ChevronDown, Dice5, Library, Search, ArrowLeftRight, Layers, CalendarDays, Mail, LogOut } from "lucide-react";
 
+// `short` est le libellé de la barre d'onglets mobile : six colonnes doivent
+// tenir sans rognage dès 320 px de large.
 const NAV_ITEMS = [
-  { href: "/shelf", label: "Mon étagère", icon: Library },
-  { href: "/search", label: "Recherche", icon: Search },
-  { href: "/trades", label: "Échanges", icon: ArrowLeftRight, badgeKey: "trades" as const },
-  { href: "/cards", label: "Cartes", icon: Layers },
-  { href: "/events", label: "Tables", icon: CalendarDays },
-  { href: "/messages", label: "Messages", icon: Mail },
+  { href: "/shelf", label: "Mon étagère", short: "Étagère", icon: Library },
+  { href: "/search", label: "Recherche", short: "Recherche", icon: Search },
+  { href: "/trades", label: "Échanges", short: "Échanges", icon: ArrowLeftRight, badgeKey: "trades" as const },
+  { href: "/cards", label: "Cartes", short: "Cartes", icon: Layers },
+  { href: "/events", label: "Tables", short: "Tables", icon: CalendarDays },
+  { href: "/messages", label: "Messages", short: "Messages", icon: Mail },
 ];
 
 export async function Nav() {
@@ -32,7 +34,7 @@ export async function Nav() {
   return (
     <header className="sticky top-0 z-20 border-b border-border-strong bg-wood">
       <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-2.5 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5 pr-3">
+        <Link href="/" className="flex flex-none items-center gap-2.5 py-1 pr-1 sm:pr-3">
           <div className="flex size-7 flex-none rotate-45 items-center justify-center rounded-sm bg-gold">
             <span className="-rotate-45 font-display text-sm text-gold-ink">M</span>
           </div>
@@ -41,7 +43,9 @@ export async function Nav() {
 
         {user ? (
           <>
-            <nav className="hidden flex-1 items-center gap-0.5 md:flex">
+            {/* Les six libellés complets ne tiennent qu'à partir de `lg` :
+                en dessous, c'est la barre d'onglets du bas de l'en-tête. */}
+            <nav className="hidden flex-1 items-center gap-0.5 lg:flex">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const badge = item.badgeKey === "trades" ? pendingTrades : 0;
@@ -49,7 +53,7 @@ export async function Nav() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex items-center gap-1.5 rounded-sm px-3 py-2 text-[13px] font-semibold text-cream-soft transition-colors hover:bg-black/10 hover:text-cream"
+                    className="flex flex-none items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-2 text-[13px] font-semibold text-cream-soft transition-colors hover:bg-black/10 hover:text-cream xl:px-3"
                   >
                     <Icon className="size-4" />
                     {item.label}
@@ -61,9 +65,9 @@ export async function Nav() {
               })}
             </nav>
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex flex-none items-center gap-1 sm:gap-2">
               <details className="group relative">
-                <summary className="flex cursor-pointer list-none items-center gap-1 rounded-sm bg-gold px-3.5 py-2 text-[13px] font-bold text-gold-ink marker:content-none [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center gap-1 rounded-sm bg-gold px-2.5 py-2 text-[13px] font-bold text-gold-ink marker:content-none sm:px-3.5 [&::-webkit-details-marker]:hidden">
                   <Dice5 className="size-4" />
                   <span className="hidden sm:inline">Créer</span>
                   <ChevronDown className="size-3.5" />
@@ -81,45 +85,65 @@ export async function Nav() {
                 </div>
               </details>
 
-              <Link href={`/profile/${user.id}`} className="flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-black/10">
+              <Link href={`/profile/${user.id}`} className="flex items-center gap-2 rounded-sm px-1.5 py-1.5 hover:bg-black/10 sm:px-2">
                 <Avatar name={user.name} size={30} />
-                <span className="hidden text-left leading-tight lg:block">
+                <span className="hidden text-left leading-tight xl:block">
                   <span className="block text-xs font-bold text-cream">{user.name}</span>
                   <span className="block text-[10px] text-cream-soft">Niveau {level}</span>
                 </span>
               </Link>
+              {/* En dessous de `xl` la déconnexion se réduit à son icône : le
+                  libellé coûte ~100 px et faisait déborder l'en-tête. */}
               <form action={logoutAction}>
-                <Button type="submit" variant="ghost" size="sm" className="text-cream-soft hover:text-cream">
+                <button
+                  type="submit"
+                  aria-label="Déconnexion"
+                  className="flex size-9 items-center justify-center rounded-sm text-cream-soft transition-colors hover:bg-black/10 hover:text-cream xl:hidden"
+                >
+                  <LogOut className="size-4" />
+                </button>
+                <Button type="submit" variant="ghost" size="sm" className="hidden text-cream-soft hover:text-cream xl:inline-flex">
                   Déconnexion
                 </Button>
               </form>
             </div>
           </>
         ) : (
-          <nav className="ml-auto flex items-center gap-2">
+          <nav className="ml-auto flex flex-none items-center gap-1 sm:gap-2">
             <Link href="/login">
               <Button variant="ghost" size="sm" className="text-cream-soft hover:text-cream">
                 Connexion
               </Button>
             </Link>
             <Link href="/register">
-              <Button size="sm">Créer un compte</Button>
+              <Button size="sm">
+                <span className="sm:hidden">S&apos;inscrire</span>
+                <span className="hidden sm:inline">Créer un compte</span>
+              </Button>
             </Link>
           </nav>
         )}
       </div>
       {user && (
-        <nav className="flex items-center gap-0.5 overflow-x-auto border-t border-black/10 px-2 py-1 md:hidden">
+        // Onglets mobiles : une grille de six colonnes, icône au-dessus du
+        // libellé court, pour rester lisible et tactile sans défilement.
+        <nav className="grid grid-cols-6 border-t border-black/10 lg:hidden">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
+            const badge = item.badgeKey === "trades" ? pendingTrades : 0;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex flex-none items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold text-cream-soft hover:bg-black/10 hover:text-cream"
+                className="relative flex min-w-0 flex-col items-center gap-1 px-0.5 py-2 text-[10px] font-semibold text-cream-soft transition-colors hover:bg-black/10 hover:text-cream"
               >
-                <Icon className="size-3.5" />
-                {item.label}
+                <Icon className="size-[18px] flex-none" />
+                <span className="w-full truncate text-center leading-none">{item.short}</span>
+                {badge > 0 && (
+                  <span className="absolute right-1.5 top-1 rounded-full bg-rust px-1 text-[9px] font-bold leading-4 text-cream">
+                    {badge}
+                  </span>
+                )}
               </Link>
             );
           })}

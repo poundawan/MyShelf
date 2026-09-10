@@ -35,20 +35,22 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-start justify-between gap-6">
-        <div className="flex items-start gap-4">
-          <Avatar name={profileUser.name} size={72} tone={profileUser.verified ? "rust" : "gold"} />
-          <div>
-            <h1 className="font-display text-3xl text-cream">{profileUser.name}</h1>
-            <p className="mt-1 text-sm text-ink-soft">
-              {profileUser.city} · membre depuis {new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(profileUser.createdAt)} · {completedTrades} échange{completedTrades > 1 ? "s" : ""} en face à face
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {profileUser.verified && <Badge variant="primary">Identité vérifiée</Badge>}
-              <Badge variant="outline">Membre fiable · Niv. {level}</Badge>
-              <Badge variant="outline">{playerLevelLabels[profileUser.experienceLevel]}</Badge>
-            </div>
-            {profileUser.bio && <p className="mt-3 max-w-md text-sm text-ink-soft">{profileUser.bio}</p>}
+        {/* Sur mobile l'avatar reste sur la ligne du nom, mais les métadonnées
+            et les badges reprennent toute la largeur pour rester lisibles. */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-4">
+            <Avatar name={profileUser.name} size={72} tone={profileUser.verified ? "rust" : "gold"} />
+            <h1 className="min-w-0 font-display text-2xl text-cream sm:text-3xl">{profileUser.name}</h1>
           </div>
+          <p className="mt-3 text-sm text-ink-soft">
+            {profileUser.city} · membre depuis {new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(profileUser.createdAt)} · {completedTrades} échange{completedTrades > 1 ? "s" : ""} en face à face
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {profileUser.verified && <Badge variant="primary">Identité vérifiée</Badge>}
+            <Badge variant="outline">Membre fiable · Niv. {level}</Badge>
+            <Badge variant="outline">{playerLevelLabels[profileUser.experienceLevel]}</Badge>
+          </div>
+          {profileUser.bio && <p className="mt-3 max-w-md text-sm text-ink-soft">{profileUser.bio}</p>}
         </div>
         {isSelf ? (
           <Link href="/profile/edit">
@@ -69,7 +71,7 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
         <StatTile value={hostedEvents} label="tables ouvertes" />
       </div>
 
-      <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-[1fr_280px]">
+      <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-[minmax(0,1fr)_280px]">
         <div>
           <h2 className="font-display text-lg text-cream">Ce qu&apos;on dit de moi</h2>
           {reviews.length === 0 ? (

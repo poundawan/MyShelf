@@ -22,7 +22,7 @@ export default function NewEventPage() {
         Une aprem jeux, un weekend de JdR, un draft du jeudi : quatre champs et c&apos;est en ligne.
       </p>
 
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_260px]">
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
         <Card className="p-6">
           <form action={formAction} className="flex flex-col gap-4">
             <div>

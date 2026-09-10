@@ -32,11 +32,11 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <Link href="/shelf" className="text-xs font-bold uppercase tracking-widest text-gold hover:underline">
+      <Link href="/shelf" className="-my-2 inline-block py-2 text-xs font-bold uppercase tracking-widest text-gold hover:underline">
         ← Retour à l&apos;étagère
       </Link>
 
-      <div className="mt-4 grid grid-cols-1 gap-8 sm:grid-cols-[280px_1fr]">
+      <div className="mt-4 grid grid-cols-1 gap-8 sm:grid-cols-[280px_minmax(0,1fr)]">
         <div className="flex aspect-[3/4] items-center justify-center bg-surface-2 text-6xl">
           {game.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

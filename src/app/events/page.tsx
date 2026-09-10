@@ -40,7 +40,7 @@ export default async function EventsPage({
         )}
       </div>
 
-      <form className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+      <form className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
         <Input name="q" defaultValue={q} placeholder="Rechercher une table..." />
         <Select name="type" defaultValue={type ?? ""} className="sm:w-48">
           <option value="">Tous les types</option>

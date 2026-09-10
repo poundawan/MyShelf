@@ -57,7 +57,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
             {formatEventRange(event.startAt, event.endAt)} · {event.location ? `${event.location}` : event.city}
           </p>
         </div>
-        <div className="text-right">
+        <div className="w-full sm:w-auto sm:text-right">
           <div className="text-sm text-ink-soft">
             {event.participants.length}{event.maxParticipants ? ` / ${event.maxParticipants}` : ""} inscrits
             {placesLeft !== null && placesLeft > 0 && ` · ${placesLeft} place${placesLeft > 1 ? "s" : ""}`}
@@ -86,7 +86,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
         </div>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-[1fr_260px]">
+      <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-[minmax(0,1fr)_260px]">
         <div>
           {event.description && (
             <>

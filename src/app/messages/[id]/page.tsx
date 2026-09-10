@@ -26,7 +26,7 @@ export default async function ConversationPage({ params }: PageProps<"/messages/
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col px-4 py-10 sm:px-6" style={{ minHeight: "calc(100vh - 130px)" }}>
-      <Link href="/messages" className="text-xs font-bold uppercase tracking-widest text-gold hover:underline">
+      <Link href="/messages" className="-my-2 inline-flex self-start py-2 text-xs font-bold uppercase tracking-widest text-gold hover:underline">
         ← Autour de la table
       </Link>
 

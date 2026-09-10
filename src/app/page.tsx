@@ -88,7 +88,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <Card className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-[1fr_auto] sm:p-8">
+      <Card className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:p-8">
         <div>
           <div className="text-xs font-bold uppercase tracking-widest text-gold">
             Tour {joinedDays} · {user.city} · {formatDateShort(new Date())}
@@ -123,7 +123,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <StatTile value={completedTrades} label="échanges menés à bien" />
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_300px]">
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div>
           <div className="flex gap-2">
             {(["Tout", "Tables", "Échanges"] as const).map((t) => (
@@ -161,7 +161,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-base text-cream">Autour de toi</h3>
-              <Link href="/search" className="text-xs font-bold text-gold hover:underline">Voir la carte</Link>
+              <Link href="/search" className="-my-2 inline-block py-2 text-xs font-bold text-gold hover:underline">Voir la carte</Link>
             </div>
             <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-sm bg-surface-2">
               <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(#8A5A34 2px, transparent 2px), linear-gradient(90deg, #8A5A34 2px, transparent 2px)", backgroundSize: "40% 2px, 2px 40%", backgroundPosition: "20% 0, 0 30%" }} />
@@ -187,7 +187,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 {nextClubEvent && `, une table ${formatEventDate(nextClubEvent.startAt).toLowerCase()}`}.
               </p>
               {nextClubEvent && (
-                <Link href={`/events/${nextClubEvent.id}`}>
+                <Link href={`/events/${nextClubEvent.id}`} className="inline-block">
                   <Button size="sm" className="mt-3">Prochaine soirée</Button>
                 </Link>
               )}
