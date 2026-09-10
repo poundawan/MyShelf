@@ -36,6 +36,25 @@ export const cardCopySchema = z.object({
   mode: z.enum(["DOUBLE", "WANT"]),
 });
 
+export const reviewSchema = z.object({
+  rating: z
+    .string()
+    .transform((value, ctx) => {
+      const n = Number(value);
+      if (!Number.isInteger(n) || n < 1 || n > 5) { ctx.addIssue({ code: "custom", message: "Choisis une note de 1 à 5" }); return z.NEVER; }
+      return n;
+    }),
+  comment: z.string().trim().min(1, "Écris un petit mot").max(1000),
+});
+
+export const profileSchema = z.object({
+  name: z.string().trim().min(2, "Le nom doit faire au moins 2 caractères").max(60),
+  city: z.string().trim().min(2, "Indique ta ville").max(80),
+  bio: z.string().trim().max(500).optional().or(z.literal("")),
+  experienceLevel: z.enum(playerLevels),
+  avatarUrl: z.string().trim().url("URL de photo invalide").optional().or(z.literal("")),
+});
+
 export const eventSchema = z.object({
   title: z.string().trim().min(1, "Titre requis").max(120),
   type: z.enum(eventTypes),

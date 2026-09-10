@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import Link from "next/link";
 import { Avatar, Badge, Card, StatTile, LevelBar, Stars, Button } from "@/components/ui";
-import { computeLevel, levelThresholds } from "@/lib/labels";
+import { computeLevel, levelThresholds, playerLevelLabels } from "@/lib/labels";
 import { startConversationAction } from "@/lib/actions/messages";
 
 export default async function ProfilePage({ params }: PageProps<"/profile/[id]">) {
@@ -44,13 +45,21 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
             <div className="mt-2 flex flex-wrap gap-2">
               {profileUser.verified && <Badge variant="primary">Identité vérifiée</Badge>}
               <Badge variant="outline">Membre fiable · Niv. {level}</Badge>
+              <Badge variant="outline">{playerLevelLabels[profileUser.experienceLevel]}</Badge>
             </div>
+            {profileUser.bio && <p className="mt-3 max-w-md text-sm text-ink-soft">{profileUser.bio}</p>}
           </div>
         </div>
-        {!isSelf && viewer && (
-          <form action={startConversationAction.bind(null, profileUser.id)}>
-            <Button type="submit" variant="secondary">Écrire</Button>
-          </form>
+        {isSelf ? (
+          <Link href="/profile/edit">
+            <Button variant="secondary">Modifier mon profil</Button>
+          </Link>
+        ) : (
+          viewer && (
+            <form action={startConversationAction.bind(null, profileUser.id)}>
+              <Button type="submit" variant="secondary">Écrire</Button>
+            </form>
+          )
         )}
       </div>
 

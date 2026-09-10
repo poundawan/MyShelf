@@ -4,9 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { joinEventAction, leaveEventAction, cancelEventAction } from "@/lib/actions/events";
 import { startConversationAction } from "@/lib/actions/messages";
-import { Badge, Button, Avatar, Card } from "@/components/ui";
+import { createEventReviewAction } from "@/lib/actions/reviews";
+import { Badge, Button, Avatar, Card, Stars } from "@/components/ui";
 import { eventTypeLabels, playerLevelLabels } from "@/lib/labels";
 import { formatEventRange } from "@/lib/format";
+import { ReviewForm } from "@/components/review-form";
 
 export default async function EventDetailPage({ params }: PageProps<"/events/[id]">) {
   const { id } = await params;
@@ -24,6 +26,10 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
 
   const isHost = user?.id === event.hostId;
   const isParticipant = user ? event.participants.some((p) => p.userId === user.id) : false;
+  const myReview =
+    user && isParticipant && !isHost
+      ? await prisma.review.findUnique({ where: { fromUserId_eventId: { fromUserId: user.id, eventId: event.id } } })
+      : null;
   const full = event.maxParticipants !== null && event.participants.length >= event.maxParticipants;
   const placesLeft = event.maxParticipants ? event.maxParticipants - event.participants.length : null;
   const hostLabel = event.type === "ROLE_PLAYING" ? "Maître de jeu" : "Organisé par";
@@ -105,6 +111,25 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
               </form>
             )}
           </Card>
+
+          {isParticipant && !isHost && (
+            <Card className="mt-6 p-4">
+              {myReview ? (
+                <div>
+                  <p className="mb-1 text-sm font-bold text-cream">Ton avis sur {event.host.name.split(" ")[0]}</p>
+                  <Stars rating={myReview.rating} />
+                  <p className="mt-2 text-sm text-ink-soft">{myReview.comment}</p>
+                </div>
+              ) : (
+                <ReviewForm
+                  action={createEventReviewAction}
+                  hiddenField="eventId"
+                  hiddenValue={event.id}
+                  title={`Comment s'est passée la table avec ${event.host.name} ?`}
+                />
+              )}
+            </Card>
+          )}
         </div>
 
         <div className="flex flex-col gap-4">

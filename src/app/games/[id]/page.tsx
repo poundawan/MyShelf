@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { Badge, Button, Avatar, Card } from "@/components/ui";
 import { gameCategoryLabels, gameCategoryEmoji, playerLevelLabels } from "@/lib/labels";
 import { pseudoDistanceKm, formatDistanceKm } from "@/lib/format";
+import { toggleGameWantAction } from "@/lib/actions/games";
 
 export default async function GameDetailPage({ params }: PageProps<"/games/[id]">) {
   const { id } = await params;
@@ -25,6 +26,9 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
 
   const otherOwners = game.copies.filter((c) => c.ownerId !== user?.id);
   const myCopy = user ? game.copies.find((c) => c.ownerId === user.id) : undefined;
+  const myWant = user
+    ? await prisma.gameWant.findUnique({ where: { gameId_userId: { gameId: game.id, userId: user.id } } })
+    : null;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -67,8 +71,15 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
             )}
             {!myCopy && (
               <Link href="/shelf/new">
-                <Button variant="secondary">☆ J&apos;ai ce jeu aussi</Button>
+                <Button variant="secondary">J&apos;ai ce jeu aussi</Button>
               </Link>
+            )}
+            {user && (
+              <form action={toggleGameWantAction.bind(null, game.id)}>
+                <Button type="submit" variant={myWant ? "primary" : "secondary"}>
+                  {myWant ? "★ Dans ma liste" : "☆ Ajouter à ma liste"}
+                </Button>
+              </form>
             )}
           </div>
         </div>

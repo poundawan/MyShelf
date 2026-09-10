@@ -89,6 +89,7 @@ model User {
   createdAt        DateTime @default(now())
 
   gameCopies         GameCopy[]
+  gameWants          GameWant[]
   cardCopies         CardCopy[]
   cardWants          CardWant[]
   clubMemberships    ClubMembership[]
@@ -117,6 +118,7 @@ model Game {
   createdAt   DateTime     @default(now())
 
   copies  GameCopy[]
+  wants   GameWant[]
   reviews Review[]
 
   @@index([category])
@@ -177,6 +179,18 @@ model CardWant {
   @@index([userId])
 }
 
+model GameWant {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([gameId, userId])
+  @@index([userId])
+}
+
 model Club {
   id          String   @id @default(cuid())
   name        String
@@ -222,6 +236,7 @@ model Event {
   updatedAt       DateTime    @updatedAt
 
   participants EventParticipant[]
+  reviews      Review[]
 
   @@index([city])
   @@index([startAt])
@@ -254,7 +269,8 @@ model TradeProposal {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
-  items TradeItem[]
+  items   TradeItem[]
+  reviews Review[]
 
   @@index([fromUserId])
   @@index([toUserId])
@@ -301,17 +317,23 @@ model Message {
 }
 
 model Review {
-  id         String   @id @default(cuid())
+  id         String         @id @default(cuid())
   fromUserId String
-  fromUser   User     @relation("ReviewsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  fromUser   User           @relation("ReviewsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUserId   String
-  toUser     User     @relation("ReviewsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  toUser     User           @relation("ReviewsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
   gameId     String?
-  game       Game?    @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  game       Game?          @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  tradeId    String?
+  trade      TradeProposal? @relation(fields: [tradeId], references: [id], onDelete: SetNull)
+  eventId    String?
+  event      Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
   context    String   // ex. "Échange · Trois Comtés", "Cartes · Cendres du Nord"
   rating     Int
   comment    String
   createdAt  DateTime @default(now())
 
+  @@unique([fromUserId, tradeId])
+  @@unique([fromUserId, eventId])
   @@index([toUserId])
 }

@@ -69,6 +69,35 @@ export async function toggleCopyStatusAction(copyId: string) {
   revalidatePath(`/games/${copy.gameId}`);
 }
 
+export async function toggleGameWantAction(gameId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const existing = await prisma.gameWant.findUnique({
+    where: { gameId_userId: { gameId, userId: user.id } },
+  });
+
+  if (existing) {
+    await prisma.gameWant.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.gameWant.create({ data: { gameId, userId: user.id } });
+  }
+
+  revalidatePath(`/games/${gameId}`);
+  revalidatePath("/shelf");
+}
+
+export async function removeGameWantAction(wantId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const want = await prisma.gameWant.findUnique({ where: { id: wantId } });
+  if (!want || want.userId !== user.id) throw new Error("Introuvable");
+
+  await prisma.gameWant.delete({ where: { id: wantId } });
+  revalidatePath("/shelf");
+}
+
 export async function deleteGameCopyAction(copyId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

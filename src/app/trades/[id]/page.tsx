@@ -3,8 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { respondToTradeAction, cancelTradeAction, completeTradeAction } from "@/lib/actions/trades";
 import { sendMessagePlainAction } from "@/lib/actions/messages";
-import { Badge, Button, Card, Input } from "@/components/ui";
+import { createTradeReviewAction } from "@/lib/actions/reviews";
+import { Badge, Button, Card, Input, Stars } from "@/components/ui";
 import { gameCategoryEmoji, tradeStatusLabels } from "@/lib/labels";
+import { ReviewForm } from "@/components/review-form";
 import { cn } from "@/lib/utils";
 
 export default async function TradeDetailPage({ params }: PageProps<"/trades/[id]">) {
@@ -22,6 +24,11 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
     },
   });
   if (!trade || (trade.fromUserId !== user.id && trade.toUserId !== user.id)) notFound();
+
+  const myReview =
+    trade.status === "COMPLETED"
+      ? await prisma.review.findUnique({ where: { fromUserId_tradeId: { fromUserId: user.id, tradeId: trade.id } } })
+      : null;
 
   const isSender = trade.fromUserId === user.id;
   const otherUser = isSender ? trade.toUser : trade.fromUser;
@@ -98,6 +105,25 @@ export default async function TradeDetailPage({ params }: PageProps<"/trades/[id
           </form>
         )}
       </div>
+
+      {trade.status === "COMPLETED" && (
+        <Card className="mt-10 p-4">
+          {myReview ? (
+            <div>
+              <p className="mb-1 text-sm font-bold text-cream">Ton avis</p>
+              <Stars rating={myReview.rating} />
+              <p className="mt-2 text-sm text-ink-soft">{myReview.comment}</p>
+            </div>
+          ) : (
+            <ReviewForm
+              action={createTradeReviewAction}
+              hiddenField="tradeId"
+              hiddenValue={trade.id}
+              title={`Comment s'est passé l'échange avec ${otherUser.name} ?`}
+            />
+          )}
+        </Card>
+      )}
 
       {trade.conversation && (
         <div className="mt-10">
