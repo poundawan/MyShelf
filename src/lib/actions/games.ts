@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
 import { gameCopySchema, itemConditions } from "@/lib/validation";
+import { appliquerPhoto } from "@/lib/photos";
+import { estImageBgg } from "@/lib/bgg";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function addGameCopyAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -22,15 +24,33 @@ export async function addGameCopyAction(_prevState: ActionState, formData: FormD
     durationMin: formData.get("durationMin"),
     description: formData.get("description"),
     photoUrl: formData.get("photoUrl"),
+    bggId: formData.get("bggId"),
   });
 
   if (!parsed.success) {
     return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
   }
 
-  const { title, category, condition, minPlayers, maxPlayers, durationMin, description, photoUrl } = parsed.data;
+  const { title, category, condition, minPlayers, maxPlayers, durationMin, description, photoUrl, bggId } = parsed.data;
 
-  let game = await prisma.game.findFirst({ where: { title: { equals: title.trim(), mode: "insensitive" } } });
+  // Le champ caché vient du sélecteur BoardGameGeek, mais rien n'empêche de
+  // poster ce formulaire à la main : on ne recopie une URL distante que si
+  // elle désigne bien une image de chez eux.
+  const jaquetteDistante = photoUrl && estImageBgg(photoUrl) ? photoUrl : null;
+  const identifiantBgg = /^[0-9]{1,9}$/.test(bggId ?? "") ? Number(bggId) : null;
+
+  // Une photo envoyée l'emporte sur la jaquette reprise du catalogue : c'est
+  // un geste explicite, contre une valeur pré-remplie.
+  const envoyee = await appliquerPhoto(formData, "photo", user.id, null);
+  if (!envoyee.ok) return { error: t(envoyee.erreur, envoyee.params) };
+  const jaquette = envoyee.url ?? jaquetteDistante;
+
+  // Le catalogue est partagé : on rattache la copie à la fiche existante
+  // plutôt que d'en créer une deuxième. L'identifiant BGG prime sur le titre,
+  // qui peut différer d'une orthographe à l'autre.
+  let game = identifiantBgg ? await prisma.game.findUnique({ where: { bggId: identifiantBgg } }) : null;
+  game ??= await prisma.game.findFirst({ where: { title: { equals: title.trim(), mode: "insensitive" } } });
+
   if (!game) {
     game = await prisma.game.create({
       data: {
@@ -40,9 +60,14 @@ export async function addGameCopyAction(_prevState: ActionState, formData: FormD
         maxPlayers: maxPlayers ? Number(maxPlayers) : null,
         durationMin: durationMin ? Number(durationMin) : null,
         description: description || null,
-        photoUrl: photoUrl || null,
+        photoUrl: jaquette,
+        bggId: identifiantBgg,
       },
     });
+  } else if (!game.photoUrl && jaquette) {
+    // La fiche partagée existait sans visuel : la première personne à en
+    // apporter un en fait profiter tout le monde.
+    game = await prisma.game.update({ where: { id: game.id }, data: { photoUrl: jaquette } });
   }
 
   await prisma.gameCopy.create({

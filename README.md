@@ -105,9 +105,17 @@ La suite couvre les 20 écrans de l'application, sur trois niveaux :
 | `tests/rendu.spec.ts` | Chaque écran s'affiche avec son contenu, sans erreur JavaScript ni débordement horizontal. Rejoué sur bureau **et** sur mobile. |
 | `tests/parcours.spec.ts` | Les scénarios complets : inscription, ajout d'un jeu, échange proposé → accepté → terminé → noté, table ouverte/rejointe/annulée, messages, liste de souhaits, édition de profil, filtres de recherche. |
 | `tests/permissions.spec.ts` | Ce qu'un membre **ne peut pas** faire : lire l'échange ou la conversation de quelqu'un d'autre, accepter une proposition qui ne lui est pas adressée, annuler la table d'un autre, agir sans session ou avec un cookie falsifié. |
+| `tests/securite.spec.ts` | Limitation des tentatives de connexion, en-têtes HTTP, cookie de session. |
+| `tests/accessibilite.spec.ts` | axe-core (WCAG 2.1 A/AA) sur chaque écran, navigation au clavier, libellés de formulaire. |
+| `tests/langue.spec.ts` | Bascule français/anglais, y compris les messages de validation et les notifications ; langues de jeu d'une table. |
+| `tests/photos.spec.ts` | Envoi d'un avatar, d'une salle et d'une jaquette, refus d'un fichier qui n'est pas une image, suppression de l'ancienne photo, en-têtes de la route de service, analyse des réponses BoardGameGeek. |
 
 Chaque test vérifie à la fois l'écran et l'état réel en base : un affichage peut mentir, pas la
 base de données.
+
+Les appels réseau vers BoardGameGeek ne sont pas rejoués : l'analyse de leurs réponses est
+vérifiée sur des fichiers d'exemple (`tests/fixtures/bgg-*.xml`), et la route de recherche est
+testée pour ce qui dépend de nous — la session exigée, la requête trop courte qui ne part pas.
 
 ### Lancer les tests
 
@@ -165,6 +173,46 @@ la personne qui a déclenché l'action.
 lesquelles la partie peut se dérouler, choisies à l'ouverture de la table et
 affichées sur sa fiche.
 
+## Photos
+
+Trois endroits acceptent une image : la **photo de profil**, la **salle d'une
+table** et la **jaquette d'un jeu**.
+
+Le fichier est réduit dans le navigateur (1200 px sur le plus long côté,
+ré-encodage en WebP) avant d'être envoyé, puis vérifié côté serveur : le format
+est reconnu dans les **octets** du fichier, jamais d'après le type annoncé par
+le navigateur, et le tout est plafonné à 2 Mo. Un fichier texte renommé
+`.png` est refusé.
+
+Les images sont stockées en base (`Photo.bytes`) et servies par
+`/api/photos/<id>` avec un cache d'un an : le contenu d'une photo ne change
+jamais, un remplacement crée une nouvelle ligne donc une nouvelle URL — et
+l'ancienne est supprimée, pour ne pas laisser d'orpheline. Vercel n'ayant pas
+de système de fichiers persistant, la base est le seul stockage vérifiable à la
+fois en développement, dans les tests et en production ; passer un jour à
+Supabase Storage ne toucherait que `src/lib/photos.ts`.
+
+Ces images étant servies depuis notre propre domaine, `next.config.ts` leur
+applique une politique de contenu `sandbox` distincte de celle de
+l'application : une image envoyée par un tiers ne doit jamais pouvoir devenir
+un document exécutable.
+
+## Catalogue BoardGameGeek
+
+L'ajout d'un jeu propose de reprendre sa fiche depuis
+[BoardGameGeek](https://boardgamegeek.com) (API XML v2, sans clé) : titre,
+nombre de joueurs, durée, âge et jaquette. Tout reste modifiable ensuite, et le
+formulaire fonctionne entièrement à la main si BGG ne répond pas.
+
+- L'appel passe par `/api/bgg/search`, côté serveur : BGG n'envoie pas
+  d'en-tête CORS. Une session est exigée pour que l'application ne devienne pas
+  un relais ouvert, et les réponses sont mises en cache 24 h.
+- Une jaquette n'est recopiée que si son URL est en HTTPS **et** sur un hôte de
+  BGG — le champ est caché, donc falsifiable.
+- `Game.bggId` est unique : deux personnes qui importent le même jeu partagent
+  la même fiche du catalogue, quelle que soit l'orthographe du titre.
+- Données et visuels : BoardGameGeek, usage non commercial.
+
 ## Modèle de données
 
 Voir `prisma/schema.prisma` :
@@ -177,6 +225,7 @@ Voir `prisma/schema.prisma` :
 - `TradeProposal` + `TradeItem` (jeu ou carte, camp qui l'offre)
 - `Conversation` + `Message`
 - `Review` (avis, contexte libre + note)
+- `Photo` (octets, type MIME, dimensions, auteur de l'envoi)
 
 Les distances affichées ("1,2 km", "900 m"...) sont **factices mais stables** (dérivées de l'id
 de l'objet) — il n'y a pas de vraie géolocalisation dans cette version, ni de génération
@@ -185,8 +234,7 @@ d'occurrences pour les tables récurrentes (champ informatif seulement).
 ## Pistes d'évolution
 
 - Vraie géolocalisation (adresse ou position) à la place des distances factices.
-- Upload de photo réel (au lieu d'une URL).
-- Page dédiée par club (actuellement teaser sur l'accueil + résultat de recherche uniquement).
-- Modification et suppression d'un jeu, d'une carte ou d'une table depuis l'interface.
 - Notifications par e-mail ou push (celles dans l'application existent).
+- Occurrences générées pour les tables récurrentes (le champ est informatif).
+- Corriger une fiche du catalogue partagé (titre, durée, nombre de joueurs).
 - Ajouter d'autres langues que le français et l'anglais.

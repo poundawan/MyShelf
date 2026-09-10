@@ -113,7 +113,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
 
           <h2 className="mt-8 font-display text-lg text-cream">{hostLabel}</h2>
           <Card className="mt-3 flex items-center gap-3 p-4">
-            <Avatar name={event.host.name} tone="gold" />
+            <Avatar name={event.host.name} tone="gold" src={event.host.avatarUrl} />
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-cream">{event.host.name}</div>
               <div className="text-xs text-ink-soft">
@@ -154,7 +154,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
             <div className="flex flex-col gap-3">
               {event.participants.map((p) => (
                 <div key={p.id} className="flex items-center gap-2">
-                  <Avatar name={p.user.name} size={30} tone={p.userId === event.hostId ? "gold" : "wood"} />
+                  <Avatar name={p.user.name} size={30} tone={p.userId === event.hostId ? "gold" : "wood"} src={p.user.avatarUrl} />
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-cream">{p.user.name}</div>
                     <div className="text-xs text-ink-soft">

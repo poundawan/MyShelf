@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { getT, LOCALE_COOKIE } from "@/lib/i18n/server";
 import { profileSchema } from "@/lib/validation";
+import { appliquerPhoto } from "@/lib/photos";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function updateProfileAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -20,15 +21,27 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
     bio: formData.get("bio"),
     experienceLevel: formData.get("experienceLevel"),
     locale: formData.get("locale"),
-    avatarUrl: formData.get("avatarUrl"),
   });
   if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
 
-  const { name, city, bio, experienceLevel, locale, avatarUrl } = parsed.data;
+  const { name, city, bio, experienceLevel, locale } = parsed.data;
+
+  // L'avatar se règle avant l'écriture : une photo refusée doit renvoyer le
+  // formulaire intact, sans avoir enregistré la moitié des champs au passage.
+  const avatar = await appliquerPhoto(formData, "avatar", user.id, user.avatarUrl);
+  if (!avatar.ok) return { error: t(avatar.erreur, avatar.params) };
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { name, city, bio: bio || null, experienceLevel, locale, avatarUrl: avatarUrl || null },
+    data: {
+      name,
+      city,
+      bio: bio || null,
+      experienceLevel,
+      locale,
+      // `undefined` laisse la colonne tranquille : personne n'a touché à la photo.
+      ...(avatar.url === undefined ? {} : { avatarUrl: avatar.url }),
+    },
   });
 
   // Le cookie double le choix enregistré en base : il fait suivre la langue

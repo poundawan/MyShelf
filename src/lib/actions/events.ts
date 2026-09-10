@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
 import { eventSchema, eventUpdateSchema } from "@/lib/validation";
 import { notify } from "@/lib/notifications";
+import { appliquerPhoto } from "@/lib/photos";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function createEventAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -31,12 +32,16 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
 
   const { title, type, level, languages, description, bringList, city, location, startAt, endAt, maxParticipants } = parsed.data;
 
+  const photo = await appliquerPhoto(formData, "photo", user.id, null);
+  if (!photo.ok) return { error: t(photo.erreur, photo.params) };
+
   const event = await prisma.event.create({
     data: {
       hostId: user.id, title, type, level, languages,
       description: description || null, bringList: bringList || null,
       city, location: location || null, startAt, endAt: endAt ?? null,
       maxParticipants: maxParticipants ?? null,
+      photoUrl: photo.url ?? null,
       participants: { create: [{ userId: user.id }] },
     },
   });
@@ -81,6 +86,9 @@ export async function updateEventAction(eventId: string, _prevState: ActionState
     }
   }
 
+  const photo = await appliquerPhoto(formData, "photo", user.id, existing.photoUrl);
+  if (!photo.ok) return { error: t(photo.erreur, photo.params) };
+
   await prisma.event.update({
     where: { id: eventId },
     data: {
@@ -88,6 +96,8 @@ export async function updateEventAction(eventId: string, _prevState: ActionState
       description: description || null, bringList: bringList || null,
       city, location: location || null, startAt, endAt: endAt ?? null,
       maxParticipants: maxParticipants ?? null,
+      // `undefined` : la photo n'a pas été touchée, on ne l'écrase pas.
+      ...(photo.url === undefined ? {} : { photoUrl: photo.url }),
     },
   });
 

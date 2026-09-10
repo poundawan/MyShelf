@@ -111,6 +111,7 @@ model User {
   messages            Message[]
   notifications       Notification[]
   loginAttempts       LoginAttempt[]
+  photos              Photo[]
 }
 
 model Game {
@@ -124,6 +125,9 @@ model Game {
   minAge      Int?
   description String?
   photoUrl    String?
+  /// Fiche BoardGameGeek d'origine, quand le jeu a été repris de leur catalogue.
+  /// Unique : deux personnes qui importent le même jeu partagent la même fiche.
+  bggId       Int?         @unique
   createdAt   DateTime     @default(now())
 
   copies  GameCopy[]
@@ -395,4 +399,28 @@ model LoginAttempt {
   createdAt DateTime @default(now())
 
   @@index([email, createdAt])
+}
+
+/// Une image envoyée par un membre : avatar, salle d'une table, jaquette d'un jeu.
+///
+/// Les octets sont en base plutôt que sur un disque : Vercel n'a pas de système
+/// de fichiers persistant, et une dépendance de stockage externe ne serait
+/// vérifiable ni par les tests ni en développement. Le volume reste modeste,
+/// les images étant réduites avant l'envoi.
+model Photo {
+  id       String @id @default(cuid())
+  mimeType String
+  bytes    Bytes
+  byteSize Int
+  width    Int
+  height   Int
+
+  /// Qui l'a envoyée. `SetNull` : la suppression d'un compte ne doit pas faire
+  /// disparaître la jaquette d'un jeu du catalogue partagé.
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([uploadedById])
 }

@@ -134,7 +134,7 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
               const km = pseudoDistanceKm(copy.id);
               return (
                 <Card key={copy.id} className="flex items-center gap-3 p-3">
-                  <Avatar name={copy.owner.name} size={38} tone={copy.owner.verified ? "rust" : "wood"} />
+                  <Avatar name={copy.owner.name} size={38} tone={copy.owner.verified ? "rust" : "wood"} src={copy.owner.avatarUrl} />
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold text-cream">{copy.owner.name}</div>
                     <div className="text-xs text-ink-soft">

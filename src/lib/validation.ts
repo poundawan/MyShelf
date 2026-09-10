@@ -35,6 +35,7 @@ export const gameCopySchema = z.object({
   durationMin: z.string().optional().or(z.literal("")),
   description: z.string().trim().max(2000).optional().or(z.literal("")),
   photoUrl: z.string().trim().url("validation.photoUrl").optional().or(z.literal("")),
+  bggId: z.string().optional().or(z.literal("")),
 });
 
 export const cardCopySchema = z.object({
@@ -61,7 +62,6 @@ export const profileSchema = z.object({
   bio: z.string().trim().max(500).optional().or(z.literal("")),
   experienceLevel: z.enum(playerLevels),
   locale: z.enum(locales),
-  avatarUrl: z.string().trim().url("validation.photoUrl").optional().or(z.literal("")),
 });
 
 export const eventSchema = z.object({

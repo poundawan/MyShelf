@@ -101,14 +101,23 @@ export function ErrorText({ children }: { children?: string }) {
   return <p className="mt-2 text-sm text-rust">{children}</p>;
 }
 
+/**
+ * Pastille d'identité : la photo de la personne si elle en a envoyé une,
+ * ses initiales sinon.
+ *
+ * Le losange étant obtenu par rotation du conteneur, la photo doit tourner en
+ * sens inverse et déborder (`scale`) pour remplir le carré une fois penché.
+ */
 export function Avatar({
   name,
   size = 40,
   tone = "gold",
+  src,
 }: {
   name: string;
   size?: number;
   tone?: "gold" | "rust" | "wood" | "sage";
+  src?: string | null;
 }) {
   const initials = name
     .split(" ")
@@ -122,12 +131,21 @@ export function Avatar({
   ];
   return (
     <div
-      className={cn("flex flex-none rotate-45 items-center justify-center rounded-sm", bg)}
+      className={cn("flex flex-none rotate-45 items-center justify-center overflow-hidden rounded-sm", bg)}
       style={{ width: size, height: size }}
     >
-      <span className="-rotate-45 font-display" style={{ fontSize: size * 0.38 }}>
-        {initials}
-      </span>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          className="h-full w-full -rotate-45 scale-150 object-cover"
+        />
+      ) : (
+        <span className="-rotate-45 font-display" style={{ fontSize: size * 0.38 }}>
+          {initials}
+        </span>
+      )}
     </div>
   );
 }

@@ -184,7 +184,9 @@ export const fr: Dictionary = {
   "game.field.description": "Description",
   "game.field.description.placeholder":
     "De quoi ça parle, l'ambiance, ce qu'il faut savoir avant de jouer...",
-  "game.field.photo": "Photo (URL, optionnel)",
+  "game.field.photo": "Envoyer une photo de ta boîte (optionnel)",
+  "game.field.cover": "Jaquette",
+  "game.field.cover.fromBgg": "Reprise du catalogue BoardGameGeek.",
 
   // ---------- fiche jeu ----------
   "game.back": "← Retour à l'étagère",
@@ -336,6 +338,7 @@ export const fr: Dictionary = {
     "On explique les règles sur place, personne ne reste sur le banc.",
   "event.field.description": "Description",
   "event.field.description.placeholder": "Au programme, l'ambiance, ce qu'il faut savoir...",
+  "event.field.photo": "Photo de la salle (optionnel)",
   "event.field.bring": "À apporter (optionnel)",
   "event.field.bring.placeholder": "Rien d'obligatoire, tes dés si tu en as...",
   "event.field.city": "Ville",
@@ -423,7 +426,7 @@ export const fr: Dictionary = {
   "profile.field.level": "Ton niveau",
   "profile.field.bio": "Bio",
   "profile.field.bio.placeholder": "Ce que tu aimes jouer, ta disponibilité...",
-  "profile.field.avatar": "Photo (URL, optionnel)",
+  "profile.field.avatar": "Photo de profil",
   "profile.field.locale": "Langue de l'interface",
   "profile.field.locale.help": "Change l'affichage de l'application, pas les textes écrits par les autres joueurs.",
 
@@ -536,6 +539,26 @@ export const fr: Dictionary = {
   "notify.eventCancelled.body": "{name} a annulé la table.",
   "notify.review": "{name} t'a laissé un avis",
   "notify.reviewEvent": "{name} a noté ta table",
+
+  // ---------- photos ----------
+  "photo.hint": "JPEG, PNG ou WebP — {taille} Mo maximum. L'image est réduite avant l'envoi.",
+  "photo.hint.processing": "Préparation de l'image…",
+  "photo.previewAlt": "Aperçu de la photo choisie",
+  "photo.remove": "Retirer la photo",
+  "photo.error.type": "Ce fichier n'est pas une image JPEG, PNG ou WebP.",
+  "photo.error.tooLarge": "Photo trop lourde : {taille} Mo maximum.",
+  "photo.error.empty": "Le fichier est vide.",
+
+  // ---------- catalogue BoardGameGeek ----------
+  "bgg.label": "Chercher dans le catalogue BoardGameGeek",
+  "bgg.placeholder": "Wingspan, Catane, 7 Wonders…",
+  "bgg.search": "Chercher",
+  "bgg.searching": "Recherche…",
+  "bgg.empty": "Aucun jeu de ce nom chez BoardGameGeek. Remplis la fiche à la main.",
+  "bgg.unreachable": "BoardGameGeek ne répond pas. Remplis la fiche à la main, rien n'est perdu.",
+  "bgg.picked": "Fiche reprise : {title}. Tu peux tout corriger ci-dessous.",
+  "bgg.players": "joueurs",
+  "bgg.credit": "Données et visuels : BoardGameGeek. Usage non commercial.",
 
   // ---------- dates relatives ----------
   "time.now": "à l'instant",

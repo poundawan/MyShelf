@@ -95,7 +95,7 @@ export default async function ClubDetailPage({ params }: PageProps<"/clubs/[id]"
             <div className="flex flex-col gap-3">
               {club.memberships.map((m) => (
                 <Link key={m.id} href={`/profile/${m.userId}`} className="flex items-center gap-2.5 hover:opacity-80">
-                  <Avatar name={m.user.name} size={30} tone={m.user.verified ? "rust" : "wood"} />
+                  <Avatar name={m.user.name} size={30} tone={m.user.verified ? "rust" : "wood"} src={m.user.avatarUrl} />
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-cream">{m.user.name}</div>
                     <div className="text-xs text-ink-soft">{t(`level.${m.user.experienceLevel}`)}</div>

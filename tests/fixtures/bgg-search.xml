@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<items total="3" termsofuse="https://boardgamegeek.com/xmlapi/termsofuse">
+    <item type="boardgame" id="266192">
+        <name type="primary" value="Wingspan"/>
+        <yearpublished value="2019"/>
+    </item>
+    <item type="boardgame" id="300442">
+        <name type="primary" value="Wingspan: Oceania Expansion"/>
+        <yearpublished value="2020"/>
+    </item>
+    <item type="boardgame" id="13"/>
+</items>

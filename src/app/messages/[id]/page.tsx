@@ -34,7 +34,7 @@ export default async function ConversationPage({ params }: PageProps<"/messages/
 
       <div className="mt-3 flex items-center justify-between gap-3 border-b border-border pb-4">
         <div className="flex items-center gap-3">
-          <Avatar name={other.name} tone={other.verified ? "rust" : "wood"} />
+          <Avatar name={other.name} tone={other.verified ? "rust" : "wood"} src={other.avatarUrl} />
           <div>
             <div className="font-display text-lg text-cream">{other.name}</div>
             <div className="text-xs text-ink-soft">{other.city}</div>

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { updateProfileAction } from "@/lib/actions/users";
 import { Button, Input, Label, Select, Textarea, ErrorText } from "@/components/ui";
+import { PhotoInput } from "@/components/photo-input";
 import { playerLevels } from "@/lib/validation";
 import { useT } from "@/lib/i18n/client";
 import { LOCALES, LOCALE_NAMES } from "@/lib/i18n/types";
@@ -55,10 +56,7 @@ export function EditProfileForm({ user }: { user: ProfileData }) {
         <Label htmlFor="bio">{t("profile.field.bio")}</Label>
         <Textarea id="bio" name="bio" rows={3} defaultValue={user.bio ?? ""} placeholder={t("profile.field.bio.placeholder")} />
       </div>
-      <div>
-        <Label htmlFor="avatarUrl">{t("profile.field.avatar")}</Label>
-        <Input id="avatarUrl" name="avatarUrl" type="url" defaultValue={user.avatarUrl ?? ""} placeholder="https://..." />
-      </div>
+      <PhotoInput name="avatar" label={t("profile.field.avatar")} currentUrl={user.avatarUrl} ratio="aspect-square" />
       <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending} className="mt-2">
         {pending ? t("common.saving") : t("common.save")}

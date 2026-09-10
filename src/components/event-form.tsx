@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import type { ActionState } from "@/lib/actions/auth";
 import { Button, Input, Label, Textarea, Card, Badge, ErrorText } from "@/components/ui";
+import { PhotoInput } from "@/components/photo-input";
 import { eventTypeEmoji } from "@/lib/labels";
 import { eventTypes, playerLevels } from "@/lib/validation";
 import { useT } from "@/lib/i18n/client";
@@ -10,6 +11,7 @@ import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/types";
 import { cn } from "@/lib/utils";
 
 export type EventFormValues = {
+  photoUrl: string | null;
   title: string;
   type: string;
   level: string;
@@ -24,7 +26,7 @@ export type EventFormValues = {
 };
 
 const EMPTY: EventFormValues = {
-  title: "", type: "BOARD_GAME", level: "BEGINNER", languages: ["FR"], description: "", bringList: "",
+  photoUrl: null, title: "", type: "BOARD_GAME", level: "BEGINNER", languages: ["FR"], description: "", bringList: "",
   city: "", location: "", startAt: "", endAt: "", maxParticipants: "",
 };
 
@@ -151,6 +153,8 @@ export function EventForm({
             <Label htmlFor="bringList">{t("event.field.bring")}</Label>
             <Input id="bringList" name="bringList" defaultValue={values.bringList} placeholder={t("event.field.bring.placeholder")} />
           </div>
+
+          <PhotoInput name="photo" label={t("event.field.photo")} currentUrl={values.photoUrl} ratio="aspect-[16/5]" />
 
           <div className="grid grid-cols-2 gap-4">
             <div>

@@ -60,7 +60,7 @@ export default async function ClubsPage() {
                   </div>
                   <div className="flex flex-none -space-x-2">
                     {club.memberships.map((m) => (
-                      <Avatar key={m.id} name={m.user.name} size={30} tone={m.user.verified ? "rust" : "wood"} />
+                      <Avatar key={m.id} name={m.user.name} size={30} tone={m.user.verified ? "rust" : "wood"} src={m.user.avatarUrl} />
                     ))}
                   </div>
                 </Card>

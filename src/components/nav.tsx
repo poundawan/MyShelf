@@ -110,7 +110,7 @@ export async function Nav() {
               </Link>
 
               <Link href={`/profile/${user.id}`} className="flex items-center gap-2 rounded-sm px-1.5 py-1.5 hover:bg-black/10 sm:px-2">
-                <Avatar name={user.name} size={30} />
+                <Avatar name={user.name} size={30} src={user.avatarUrl} />
                 <span className="hidden text-left leading-tight xl:block">
                   <span className="block text-xs font-bold text-cream">{user.name}</span>
                   <span className="block text-[10px] text-cream-soft">{t("nav.level", { level })}</span>

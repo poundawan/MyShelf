@@ -36,7 +36,7 @@ export default async function MessagesPage() {
             return (
               <Link key={c.id} href={`/messages/${c.id}`}>
                 <Card className="flex items-center gap-3 p-3.5 transition-colors hover:border-gold/60">
-                  <Avatar name={other.name} tone={other.verified ? "rust" : "wood"} />
+                  <Avatar name={other.name} tone={other.verified ? "rust" : "wood"} src={other.avatarUrl} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <div className="font-semibold text-cream">{other.name}</div>

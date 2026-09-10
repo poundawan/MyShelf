@@ -55,7 +55,7 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
             et les badges reprennent toute la largeur pour rester lisibles. */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-4">
-            <Avatar name={profileUser.name} size={72} tone={profileUser.verified ? "rust" : "gold"} />
+            <Avatar name={profileUser.name} size={72} tone={profileUser.verified ? "rust" : "gold"} src={profileUser.avatarUrl} />
             <h1 className="min-w-0 font-display text-2xl text-cream sm:text-3xl">{profileUser.name}</h1>
           </div>
           <p className="mt-3 text-sm text-ink-soft">
@@ -102,7 +102,7 @@ export default async function ProfilePage({ params }: PageProps<"/profile/[id]">
                 <Card key={r.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <Avatar name={r.fromUser.name} size={32} tone="wood" />
+                      <Avatar name={r.fromUser.name} size={32} tone="wood" src={r.fromUser.avatarUrl} />
                       <div>
                         <div className="text-sm font-semibold text-cream">{r.fromUser.name}</div>
                         <div className="text-xs text-ink-soft">{r.context}</div>
