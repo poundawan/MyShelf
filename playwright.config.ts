@@ -91,7 +91,8 @@ export default defineConfig({
         DATABASE_URL: process.env.DATABASE_URL ?? "",
         DIRECT_URL: process.env.DIRECT_URL ?? "",
         AUTH_SECRET: process.env.AUTH_SECRET ?? "",
-        BGG_API_BASE: `http://127.0.0.1:${PORT_SERVICES}/xmlapi2`,
+        // Deux racines, comme en production : la principale puis le secours.
+        BGG_API_BASES: `http://127.0.0.1:${PORT_SERVICES}/xmlapi2,http://127.0.0.1:${PORT_SERVICES}/secours/xmlapi2`,
         ADRESSE_API_BASE: `http://127.0.0.1:${PORT_SERVICES}`,
       },
     },

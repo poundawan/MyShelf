@@ -11,19 +11,30 @@
  */
 
 /**
- * Racine de l'API. Surchargeable par `BGG_API_BASE` : les tests pointent vers
- * un faux BoardGameGeek local, ce qui permet de vérifier toute la chaîne
- * (requête, statuts d'erreur, analyse) sans dépendre d'un service tiers ni
- * d'un accès réseau sortant.
+ * Racines de l'API, essayées dans l'ordre.
+ *
+ * BoardGameGeek sert la même API sous deux noms. Depuis Vercel,
+ * `boardgamegeek.com` a répondu **401** là où le développement local passe :
+ * son pare-feu traite différemment les adresses d'hébergeurs. `api.geekdo.com`
+ * est le second point d'entrée officiel, et il ne partage pas forcément les
+ * mêmes règles.
+ *
+ * Surchargeable par `BGG_API_BASES` (séparées par des virgules) : les tests
+ * pointent vers un faux BoardGameGeek local, ce qui permet de vérifier toute
+ * la chaîne — bascule d'hôte comprise — sans accès réseau sortant.
  */
-const BASE = process.env.BGG_API_BASE || "https://boardgamegeek.com/xmlapi2";
+const BASES = (process.env.BGG_API_BASES ||
+  "https://boardgamegeek.com/xmlapi2,https://api.geekdo.com/xmlapi2")
+  .split(",")
+  .map((base) => base.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
 /**
- * BoardGameGeek est derrière Cloudflare, qui refuse les clients sans
- * identification. Sans cet en-tête, la réponse peut être un 403 — que rien ne
- * distinguerait d'une recherche sans résultat.
+ * BoardGameGeek est derrière un pare-feu applicatif qui filtre sur l'en-tête
+ * d'agent. La forme « Mozilla/5.0 (compatible; … ) » est celle qu'emploient les
+ * robots bien élevés : elle passe les filtres naïfs sans mentir sur qui appelle.
  */
-const AGENT = "MyShelf/1.0 (+https://github.com/poundawan/MyShelf)";
+const AGENT = "Mozilla/5.0 (compatible; MyShelf/1.0; +https://github.com/poundawan/MyShelf)";
 
 /** BGG est lent quand son cache est froid ; au-delà, on rend la main. */
 const DELAI_MS = 8000;
@@ -72,7 +83,7 @@ export async function rechercherJeuxBgg(requete: string): Promise<ResultatRecher
   if (terme.length < 2) return { jeux: [], statut: "ok" };
 
   const recherche = await recuperer(
-    `${BASE}/search?type=boardgame,boardgameexpansion&query=${encodeURIComponent(terme)}`,
+    `/search?type=boardgame,boardgameexpansion&query=${encodeURIComponent(terme)}`,
   );
   if (!recherche.ok) return { jeux: [], statut: "injoignable", detail: recherche.detail };
 
@@ -82,14 +93,14 @@ export async function rechercherJeuxBgg(requete: string): Promise<ResultatRecher
   // ne ramène rien, on retente sans, plutôt que d'annoncer que le jeu
   // n'existe pas.
   if (ids.length === 0) {
-    const large = await recuperer(`${BASE}/search?query=${encodeURIComponent(terme)}`);
+    const large = await recuperer(`/search?query=${encodeURIComponent(terme)}`);
     if (large.ok) ids = analyserIdsRecherche(large.xml);
   }
 
   ids = ids.slice(0, MAX_RESULTATS);
   if (ids.length === 0) return { jeux: [], statut: "ok" };
 
-  const fiches = await recuperer(`${BASE}/thing?id=${ids.join(",")}`);
+  const fiches = await recuperer(`/thing?id=${ids.join(",")}`);
   if (!fiches.ok) return { jeux: [], statut: "injoignable", detail: fiches.detail };
 
   return { jeux: analyserFiches(fiches.xml), statut: "ok" };
@@ -115,7 +126,37 @@ type Recuperation = { ok: true; xml: string } | { ok: false; detail: string };
 /** Nombre de tentatives quand BGG met la demande en file d'attente (202). */
 const TENTATIVES_202 = 2;
 
-async function recuperer(url: string): Promise<Recuperation> {
+/**
+ * Récupère un chemin de l'API, en essayant chaque racine tour à tour.
+ *
+ * Le premier hôte qui répond gagne. Les échecs sont journalisés avec ce qu'il
+ * faut pour comprendre qui a refusé — statut, serveur, identifiant Cloudflare,
+ * début du corps : un « HTTP 401 » nu ne dit pas si c'est le pare-feu de BGG ou
+ * autre chose.
+ */
+async function recuperer(chemin: string): Promise<Recuperation> {
+  const echecs: string[] = [];
+
+  for (const base of BASES) {
+    const resultat = await recupererChez(base, chemin);
+    if (resultat.ok) return resultat;
+    echecs.push(`${hote(base)} : ${resultat.detail}`);
+  }
+
+  return { ok: false, detail: echecs.join(" — ") || "aucune racine configurée" };
+}
+
+function hote(base: string): string {
+  try {
+    return new URL(base).host;
+  } catch {
+    return base;
+  }
+}
+
+async function recupererChez(base: string, chemin: string): Promise<Recuperation> {
+  const url = `${base}${chemin}`;
+
   for (let tentative = 1; tentative <= TENTATIVES_202; tentative++) {
     try {
       const reponse = await fetch(url, {
@@ -136,9 +177,17 @@ async function recuperer(url: string): Promise<Recuperation> {
       }
 
       if (!reponse.ok) {
-        const detail = `HTTP ${reponse.status}`;
-        console.error(`BoardGameGeek a refusé ${url} : ${detail}`);
-        return { ok: false, detail };
+        // Le corps d'un refus de pare-feu explique souvent le refus mieux que
+        // son code : page de défi, message de blocage, identifiant à citer.
+        const debutCorps = (await reponse.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 200);
+        console.error(
+          `BoardGameGeek a refusé ${url} : HTTP ${reponse.status}` +
+            ` | server=${reponse.headers.get("server") ?? "?"}` +
+            ` | cf-ray=${reponse.headers.get("cf-ray") ?? "?"}` +
+            ` | www-authenticate=${reponse.headers.get("www-authenticate") ?? "?"}` +
+            ` | corps=${debutCorps}`,
+        );
+        return { ok: false, detail: `HTTP ${reponse.status}` };
       }
 
       return { ok: true, xml: await reponse.text() };

@@ -97,6 +97,17 @@ test.describe("Recherche BoardGameGeek", () => {
     await expect(page.getByText(/Timeout|abort/i)).toBeVisible();
   });
 
+  test("un hôte qui refuse fait basculer sur le second, sans que personne ne le voie", async ({ page }) => {
+    await login(page, "chloe");
+    await chercher(page, "bascule");
+
+    // La racine principale renvoie 401 — ce que le pare-feu de BoardGameGeek
+    // fait depuis une adresse d'hébergeur. La seconde doit prendre le relais
+    // et la recherche aboutir normalement.
+    await expect(page.getByRole("button", { name: /Wingspan/ }).first()).toBeVisible();
+    await expect(page.getByText(/ne répond pas/)).toHaveCount(0);
+  });
+
   test("si le filtre par type ne ramène rien, la recherche est retentée sans lui", async ({ page }) => {
     await login(page, "chloe");
     await chercher(page, "sanstype");

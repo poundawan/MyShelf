@@ -226,8 +226,16 @@ formulaire fonctionne entièrement à la main si BGG ne répond pas.
   motif réel (`HTTP 403`, `TimeoutError`…), et le serveur le journalise.
 - Un en-tête `User-Agent` explicite est envoyé : BGG est derrière Cloudflare,
   qui refuse les clients non identifiés.
-- `BGG_API_BASE` permet de viser un autre serveur — c'est ce dont se servent
-  les tests.
+- **Deux racines sont essayées dans l'ordre** : `boardgamegeek.com` puis
+  `api.geekdo.com`. Depuis Vercel, la première a répondu **401** là où le
+  développement local passait — le pare-feu de BGG traite différemment les
+  adresses d'hébergeurs. La seconde est l'autre point d'entrée officiel de la
+  même API. Chaque refus est journalisé avec son statut, l'en-tête `server`,
+  l'identifiant `cf-ray` et le début du corps : un « HTTP 401 » nu ne dit pas
+  qui a refusé.
+- `BGG_API_BASES` (séparées par des virgules) permet de viser d'autres
+  serveurs — c'est ce dont se servent les tests, qui vérifient aussi la
+  bascule d'un hôte à l'autre.
 - Une jaquette n'est recopiée que si son URL est en HTTPS **et** sur un hôte de
   BGG — le champ est caché, donc falsifiable.
 - `Game.bggId` est unique : deux personnes qui importent le même jeu partagent

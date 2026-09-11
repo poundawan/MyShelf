@@ -21,6 +21,9 @@ import path from "node:path";
  *   attente   → HTTP 202, comme BGG quand il prépare encore la réponse
  *   sanstype  → vide si le filtre `type` est présent, peuplée sinon
  *   lent      → ne répond jamais, pour éprouver le délai d'attente
+ *   bascule   → HTTP 401 sur la racine principale, réponse normale sur la
+ *               racine de secours : c'est ce que fait le pare-feu de BGG face
+ *               à une adresse d'hébergeur.
  *
  * Côté adresses, le terme cherché sert aussi d'aiguillage :
  *   lyon        → trois communes, dans l'ordre d'importance de l'API
@@ -97,6 +100,10 @@ const serveur = createServer((requete, reponse) => {
   }
 
   // ---- BoardGameGeek ----
+  // Deux racines pour un seul serveur : `/xmlapi2` joue boardgamegeek.com,
+  // `/secours/xmlapi2` joue api.geekdo.com.
+  const surSecours = url.pathname.startsWith("/secours/");
+  if (terme === "bascule" && !surSecours) return xml("<html>Unauthorized</html>", 401);
 
   if (url.pathname.endsWith("/thing")) {
     // Les identifiants demandés viennent de la recherche : on renvoie les
