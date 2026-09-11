@@ -495,6 +495,7 @@ export const fr: Dictionary = {
   "validation.cardName.required": "Nom de carte requis",
   "validation.photoUrl": "URL de photo invalide",
   "commune.placeholder": "Ville ou code postal",
+  "commune.offline": "Suggestions issues de la liste embarquée : le service d'adresses n'a pas répondu.",
   "commune.notChosen": "Choisis une commune dans la liste pour que les distances soient calculées.",
   "validation.rating": "Choisis une note de 1 à 5",
   "validation.comment.required": "Écris un petit mot",

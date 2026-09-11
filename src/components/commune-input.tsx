@@ -35,6 +35,10 @@ export function CommuneInput({
   const [saisie, setSaisie] = useState(defaultValue);
   const [code, setCode] = useState<string | null>(defaultCode);
   const [resultats, setResultats] = useState<CommuneTrouvee[]>([]);
+  // Vrai quand les suggestions viennent du référentiel embarqué parce que le
+  // service d'adresses n'a pas répondu. À dire : sinon une panne durable
+  // passerait pour un classement médiocre.
+  const [horsLigne, setHorsLigne] = useState(false);
   const [ouvert, setOuvert] = useState(false);
   const [surligne, setSurligne] = useState(-1);
   const conteneur = useRef<HTMLDivElement>(null);
@@ -47,15 +51,21 @@ export function CommuneInput({
     const minuterie = setTimeout(async () => {
       if (terme.length < 2) {
         setResultats([]);
+        setHorsLigne(false);
         return;
       }
       try {
-        const trouvees = await rechercherCommunesAction(terme);
-        if (!abandonne) setResultats(trouvees);
+        const reponse = await rechercherCommunesAction(terme);
+        if (abandonne) return;
+        setResultats(reponse.communes);
+        setHorsLigne(reponse.source === "secours");
       } catch {
         // Le champ reste utilisable en saisie libre : ne rien afficher vaut
         // mieux qu'un message d'erreur sur une aide à la saisie.
-        if (!abandonne) setResultats([]);
+        if (!abandonne) {
+          setResultats([]);
+          setHorsLigne(false);
+        }
       }
     }, 220);
     return () => {
@@ -159,6 +169,10 @@ export function CommuneInput({
             </li>
           ))}
         </ul>
+      )}
+
+      {horsLigne && resultats.length > 0 && (
+        <p className="mt-1.5 text-xs text-ink-soft">{t("commune.offline")}</p>
       )}
 
       {!code && saisie.trim().length > 0 && (

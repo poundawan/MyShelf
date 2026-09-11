@@ -9,11 +9,11 @@ loadEnvFile({ path: path.resolve(__dirname, ".env.test"), quiet: true });
 const PORT = Number(process.env.TEST_PORT ?? 3100);
 const baseURL = `http://127.0.0.1:${PORT}`;
 
-// L'API BoardGameGeek n'est jamais appelée par les tests : un faux serveur
-// local rejoue ses réponses, pannes comprises. Sans cela, la requête HTTP et
-// le traitement de ses statuts d'erreur — le maillon le plus fragile — ne
-// seraient couverts par rien.
-const PORT_BGG = Number(process.env.FAUX_BGG_PORT ?? 3199);
+// Aucun service extérieur n'est appelé par les tests : un faux serveur local
+// rejoue les réponses de BoardGameGeek et de la Base Adresse Nationale, pannes
+// comprises. Sans cela, les requêtes HTTP et le traitement de leurs statuts
+// d'erreur — le maillon le plus fragile — ne seraient couverts par rien.
+const PORT_SERVICES = Number(process.env.FAUX_SERVICES_PORT ?? 3199);
 
 // Chromium est déjà présent dans certains environnements (conteneurs CI, bacs
 // à sable) : on l'utilise tel quel plutôt que de le retélécharger.
@@ -70,13 +70,13 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `npx tsx tests/faux-bgg.ts`,
-      port: PORT_BGG,
+      command: `npx tsx tests/faux-services.ts`,
+      port: PORT_SERVICES,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
       stdout: "pipe",
       stderr: "pipe",
-      env: { FAUX_BGG_PORT: String(PORT_BGG) },
+      env: { FAUX_SERVICES_PORT: String(PORT_SERVICES) },
     },
     {
       // On teste le vrai build de production, pas le serveur de développement :
@@ -91,7 +91,8 @@ export default defineConfig({
         DATABASE_URL: process.env.DATABASE_URL ?? "",
         DIRECT_URL: process.env.DIRECT_URL ?? "",
         AUTH_SECRET: process.env.AUTH_SECRET ?? "",
-        BGG_API_BASE: `http://127.0.0.1:${PORT_BGG}/xmlapi2`,
+        BGG_API_BASE: `http://127.0.0.1:${PORT_SERVICES}/xmlapi2`,
+        ADRESSE_API_BASE: `http://127.0.0.1:${PORT_SERVICES}`,
       },
     },
   ],

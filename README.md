@@ -110,16 +110,17 @@ La suite couvre les 20 écrans de l'application, sur trois niveaux :
 | `tests/langue.spec.ts` | Bascule français/anglais, y compris les messages de validation et les notifications ; langues de jeu d'une table. |
 | `tests/photos.spec.ts` | Envoi d'un avatar, d'une salle et d'une jaquette, refus d'un fichier qui n'est pas une image, suppression de l'ancienne photo, en-têtes de la route de service. |
 | `tests/bgg.spec.ts` | Recherche BoardGameGeek de bout en bout contre un faux serveur local : réponse normale, aucun résultat, HTTP 500, HTTP 202, serveur muet, filtre par type infructueux, puis le sélecteur à l'écran. |
-| `tests/geo.spec.ts` | Distances comparées à des valeurs connues (Lyon–Paris, Lyon–Marseille), boîte englobante qui n'écarte jamais un voisin réel, référentiel chargé, autocomplétion par nom et par code postal, rayon réellement appliqué, absence de distance inventée. |
+| `tests/geo.spec.ts` | Distances comparées à des valeurs connues (Lyon–Paris, Lyon–Marseille), boîte englobante qui n'écarte jamais un voisin réel, référentiel chargé, autocomplétion via l'API d'adresses (ordre d'importance conservé, faute de frappe rattrapée, panne signalée, commune inconnue écartée), rayon réellement appliqué, absence de distance inventée. |
 
 Chaque test vérifie à la fois l'écran et l'état réel en base : un affichage peut mentir, pas la
 base de données.
 
-L'API BoardGameGeek n'est jamais appelée par les tests : `tests/faux-bgg.ts` rejoue ses réponses,
-**pannes comprises**, et `BGG_API_BASE` y dirige l'application. Le terme cherché sert
-d'aiguillage — `panne` renvoie un 500, `attente` un 202, `lent` ne répond jamais. Toute la chaîne
-est ainsi couverte (requête, statuts d'erreur, analyse, écran) sans dépendre d'un service tiers
-ni d'un accès réseau sortant.
+Aucun service extérieur n'est appelé par les tests : `tests/faux-services.ts` rejoue les réponses
+de BoardGameGeek **et** de la Base Adresse Nationale, **pannes comprises**, et `BGG_API_BASE` /
+`ADRESSE_API_BASE` y dirigent l'application. Le terme cherché sert d'aiguillage — `panne` renvoie
+une erreur, `attente` un 202, `lent` ne répond jamais. Toute la chaîne est ainsi couverte
+(requête, statuts d'erreur, analyse, écran) sans dépendre d'un tiers ni d'un accès réseau
+sortant.
 
 ### Lancer les tests
 
@@ -250,13 +251,43 @@ vérité utile.
 Quand la commune n'est pas connue, l'application affiche **« distance
 inconnue »** et invite à la renseigner. Elle n'estime rien.
 
-### Un référentiel embarqué, aucun service tiers
+### L'autocomplétion passe par la Base Adresse Nationale
+
+Les suggestions viennent d'`api-adresse.data.gouv.fr`, le géocodeur du service
+public français : gratuit, sans clé, sans quota déclaré. Il classe par
+importance réelle — « lyon » remonte Lyon avant Lyons-la-Forêt — et rattrape
+les fautes de frappe, deux choses qu'une liste locale ne sait pas faire : sans
+donnée de population, elle ne peut trier que par longueur de nom.
+
+L'appel part du **serveur**, jamais du navigateur : la politique de contenu
+n'autorise que notre domaine en `connect-src`, et cela évite d'envoyer l'adresse
+IP de nos membres chez un tiers, fût-il public. Seul le terme tapé sort.
+
+Trois garde-fous :
+
+- **L'API ne décide de rien.** Chaque code INSEE qu'elle renvoie est recoupé
+  avec le référentiel local, qui reste seul juge du nom retenu et des
+  coordonnées. Une suggestion qu'on ne saurait pas positionner est écartée
+  plutôt que proposée : pouvoir la choisir sans jamais obtenir de distance
+  serait un piège de plus.
+- **Si elle ne répond pas, la liste embarquée prend le relais**, et l'écran le
+  dit. Un service durablement muet passerait sinon pour un classement médiocre.
+- **Un service qui ne trouve rien n'est pas un service en panne** : les deux
+  cas sont distingués, et seul le second se signale.
+
+Un code postal complet ne passe pas par l'API : il ne laisse aucune ambiguïté,
+et le référentiel local répond mieux, et toujours.
+
+`ADRESSE_API_BASE` permet de viser un autre serveur — c'est ce dont se servent
+les tests.
+
+### Un référentiel embarqué pour les positions
 
 `prisma/data/communes.json.gz` (609 ko) contient les **35 273 communes
 françaises** — métropole, outre-mer, Corse, plus les arrondissements de Paris,
-Lyon et Marseille. Pas de clé d'API, pas de quota, pas de géocodeur à qui
-confier l'adresse de nos membres, et un comportement identique en
-développement, dans les tests et en production.
+Lyon et Marseille. C'est lui qui porte les coordonnées : une réponse d'API ne
+décide pas d'où se trouve quelqu'un, et les distances doivent rester calculables
+même quand un service extérieur ne répond plus.
 
 Le fichier est construit par `scripts/construire-communes.ts`, à relancer à la
 main quand le découpage administratif bouge (une fois par an tout au plus,
@@ -301,7 +332,8 @@ part.
 - **Pas de « utiliser ma position ».** L'application ne stocke que des
   positions de communes : récupérer des coordonnées exactes pour les arrondir
   aussitôt n'apporterait qu'une permission de plus à demander.
-- **France uniquement.** Le référentiel s'arrête aux frontières.
+- **France uniquement.** Le référentiel s'arrête aux frontières, et l'API
+  d'adresses aussi.
 
 ## Modèle de données
 

@@ -131,14 +131,6 @@ test.describe("Choix de la commune", () => {
     await page.waitForURL(/\/profile\/(?!edit$)[a-z0-9]+$/);
   });
 
-  test("un code postal désigne la commune sans ambiguïté", async ({ page }) => {
-    await login(page, "chloe");
-    await page.goto("/profile/edit");
-
-    await page.fill("#city", "69007");
-    await expect(page.getByRole("option", { name: /Lyon 7e/ })).toBeVisible();
-  });
-
   test("les accents et les abréviations ne font pas rater une commune", async ({ page }) => {
     await login(page, "chloe");
     await page.goto("/profile/edit");
@@ -153,6 +145,81 @@ test.describe("Choix de la commune", () => {
 
     await page.fill("#city", "Quelque part");
     await expect(page.getByText(/Choisis une commune dans la liste/)).toBeVisible();
+  });
+});
+
+test.describe("Autocomplétion par la Base Adresse Nationale", () => {
+  test("l'ordre d'importance de l'API est conservé", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    await page.fill("#city", "lyon");
+    const options = page.getByRole("option");
+    await options.first().waitFor();
+
+    // L'API classe Lyon avant Lyons-la-Forêt. Le recoupement avec le
+    // référentiel ne doit pas rebattre les cartes.
+    const libelles = await options.allTextContents();
+    expect(libelles[0]).toContain("Lyon");
+    expect(libelles[0]).not.toContain("Lyons-la-Forêt");
+
+    // Le nom affiché est celui du référentiel, pas celui de l'API : c'est
+    // « Lyon 7e » qui sera enregistré, pas « Lyon 7e Arrondissement ».
+    expect(libelles.join(" | ")).toContain("Lyon 7e");
+    expect(libelles.join(" | ")).not.toContain("Arrondissement");
+  });
+
+  test("une faute de frappe est rattrapée, ce que la liste embarquée ne sait pas faire", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    await page.fill("#city", "vileurbane");
+    await expect(page.getByRole("option", { name: /Villeurbanne/ })).toBeVisible();
+    // C'est bien l'API qui a répondu : aucune mention de repli.
+    await expect(page.getByText(/liste embarquée/)).toHaveCount(0);
+  });
+
+  test("une commune absente du référentiel n'est pas proposée", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    // L'API la connaît, nous non : la proposer reviendrait à offrir un choix
+    // dont on ne saurait rien faire, sans jamais pouvoir calculer de distance.
+    await page.fill("#city", "fantome");
+    await expect(page.getByText(/Commune Fantôme/)).toHaveCount(0);
+  });
+
+  test("si l'API tombe, la liste embarquée prend le relais et le dit", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    await page.fill("#city", "panne");
+    // Le formulaire reste utilisable — la France compte des communes en
+    // « Pannes » — et l'écran signale que le service n'a pas répondu.
+    await expect(page.getByRole("option").first()).toBeVisible();
+    await expect(page.getByText(/liste embarquée/)).toBeVisible();
+  });
+
+  test("un service qui ne trouve rien n'est pas un service en panne", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    // « villeurbanne » n'est pas dans le jeu d'essai de la fausse API : elle
+    // répond correctement, mais à vide. Le référentiel complète, et il serait
+    // mensonger d'annoncer une panne.
+    await page.fill("#city", "villeurbanne");
+    await expect(page.getByRole("option", { name: /Villeurbanne/ })).toBeVisible();
+    await expect(page.getByText(/liste embarquée/)).toHaveCount(0);
+  });
+
+  test("un code postal ne passe pas par l'API : le référentiel est plus sûr", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    await page.fill("#city", "69007");
+    await expect(page.getByRole("option", { name: /Lyon 7e/ })).toBeVisible();
+    // Résolu localement, donc sans mention de repli : ce n'est pas une panne.
+    await expect(page.getByText(/liste embarquée/)).toHaveCount(0);
   });
 });
 
