@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import { Button, Card, Input, Label } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
+import { PoweredByBgg } from "@/components/powered-by-bgg";
 import { rechercherBggAction } from "@/lib/actions/bgg";
 import type { JeuBgg } from "@/lib/bgg";
 
@@ -135,7 +136,7 @@ export function BggPicker({ onChoisir }: { onChoisir: (jeu: JeuBgg) => void }) {
         </ul>
       )}
 
-      <p className="mt-3 text-xs text-ink-soft">{t("bgg.credit")}</p>
+      <PoweredByBgg className="mt-3" />
     </Card>
   );
 }

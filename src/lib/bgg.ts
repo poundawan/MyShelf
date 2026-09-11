@@ -15,21 +15,19 @@
  */
 
 /**
- * Racines de l'API, essayées dans l'ordre.
+ * Racine de l'API.
  *
- * BoardGameGeek sert la même API sous deux noms ; les deux exigent le même
- * jeton. Garder la seconde ne coûte rien quand la première répond, et dépanne
- * si l'une des deux tombe.
+ * `boardgamegeek.com`, **sans `www`** : leur documentation en fait une
+ * condition explicite du bon fonctionnement du jeton. J'avais ajouté
+ * `api.geekdo.com` en secours en croyant contourner un pare-feu ; ce n'était
+ * pas le problème, ce nom n'est documenté nulle part, et chaque appel inutile
+ * pèse sur un quota qu'ils demandent de ménager. Il est retiré.
  *
- * Surchargeable par `BGG_API_BASES` (séparées par des virgules) : les tests
- * pointent vers un faux BoardGameGeek local, ce qui permet de vérifier toute
- * la chaîne — bascule d'hôte comprise — sans accès réseau sortant.
+ * Surchargeable par `BGG_API_BASE` : les tests pointent vers un faux
+ * BoardGameGeek local, ce qui permet de vérifier toute la chaîne sans accès
+ * réseau sortant.
  */
-const BASES = (process.env.BGG_API_BASES ||
-  "https://boardgamegeek.com/xmlapi2,https://api.geekdo.com/xmlapi2")
-  .split(",")
-  .map((base) => base.trim().replace(/\/$/, ""))
-  .filter(Boolean);
+const BASE = (process.env.BGG_API_BASE || "https://boardgamegeek.com/xmlapi2").trim().replace(/\/$/, "");
 
 /**
  * BoardGameGeek demande aux applications de s'identifier. On le fait
@@ -160,35 +158,15 @@ type Recuperation = { ok: true; xml: string } | { ok: false; detail: string };
 const TENTATIVES_202 = 2;
 
 /**
- * Récupère un chemin de l'API, en essayant chaque racine tour à tour.
+ * Récupère un chemin de l'API.
  *
- * Le premier hôte qui répond gagne. Les échecs sont journalisés avec ce qu'il
- * faut pour comprendre qui a refusé — statut, serveur, identifiant Cloudflare,
- * début du corps : un « HTTP 401 » nu ne dit pas si c'est le pare-feu de BGG ou
- * autre chose.
+ * Les échecs sont journalisés avec ce qu'il faut pour comprendre le refus —
+ * statut, serveur, identifiant Cloudflare, en-tête `www-authenticate`, début du
+ * corps. C'est exactement ce qui a fini par élucider le 401 : un statut nu ne
+ * disait pas qu'il manquait un jeton.
  */
 async function recuperer(chemin: string): Promise<Recuperation> {
-  const echecs: string[] = [];
-
-  for (const base of BASES) {
-    const resultat = await recupererChez(base, chemin);
-    if (resultat.ok) return resultat;
-    echecs.push(`${hote(base)} : ${resultat.detail}`);
-  }
-
-  return { ok: false, detail: echecs.join(" — ") || "aucune racine configurée" };
-}
-
-function hote(base: string): string {
-  try {
-    return new URL(base).host;
-  } catch {
-    return base;
-  }
-}
-
-async function recupererChez(base: string, chemin: string): Promise<Recuperation> {
-  const url = `${base}${chemin}`;
+  const url = `${BASE}${chemin}`;
 
   for (let tentative = 1; tentative <= TENTATIVES_202; tentative++) {
     try {

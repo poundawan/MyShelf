@@ -570,7 +570,8 @@ export const fr: Dictionary = {
   "bgg.failed": "La recherche n'a pas pu aboutir. Remplis la fiche à la main, rien n'est perdu.",
   "bgg.picked": "Fiche reprise : {title}. Tu peux tout corriger ci-dessous.",
   "bgg.players": "joueurs",
-  "bgg.credit": "Données et visuels : BoardGameGeek. Usage non commercial.",
+  "bgg.poweredBy": "Powered by BGG",
+  "bgg.credit": "Données et visuels : BoardGameGeek.",
 
   // ---------- dates relatives ----------
   "time.now": "à l'instant",

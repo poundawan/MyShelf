@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Badge, Button, Avatar, Card, Select } from "@/components/ui";
+import { PoweredByBgg } from "@/components/powered-by-bgg";
 import { gameCategoryEmoji } from "@/lib/labels";
 import { itemConditions } from "@/lib/validation";
 import { getT, getLocale } from "@/lib/i18n/server";
@@ -67,6 +68,9 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
           </div>
           <h1 className="mt-3 font-display text-3xl text-cream">{game.title}</h1>
           {game.description && <p className="mt-3 text-sm leading-relaxed text-ink-soft">{game.description}</p>}
+          {/* La fiche vient de leur catalogue : leurs conditions demandent que
+              la mention accompagne la donnée, pas seulement l'import. */}
+          {game.bggId !== null && <PoweredByBgg className="mt-3" />}
 
           <div className="mt-5 grid grid-cols-4 gap-4 border-t border-border pt-4 text-sm">
             <Stat label={t("game.stat.players")} value={game.minPlayers || game.maxPlayers ? `${game.minPlayers ?? "?"}–${game.maxPlayers ?? "?"}` : "—"} />

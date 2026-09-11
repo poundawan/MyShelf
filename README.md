@@ -209,14 +209,39 @@ L'ajout d'un jeu propose de reprendre sa fiche depuis
 joueurs, durée, âge et jaquette. Tout reste modifiable ensuite, et le
 formulaire fonctionne entièrement à la main si BGG ne répond pas.
 
-> **Un jeton est obligatoire.** Depuis le 2 juillet 2025, l'API XML exige une
-> inscription : tout appel sans en-tête `Authorization` reçoit un **401**,
-> usage commercial ou non. Demande un jeton d'application sur
-> [Using the XML API](https://boardgamegeek.com/using_the_xml_api), puis
-> renseigne `BGG_API_TOKEN` (en local dans `.env`, et dans les variables
-> d'environnement Vercel). Sans jeton, l'application ne les appelle pas du
-> tout : elle le dit et laisse le formulaire manuel disponible, plutôt que de
-> les solliciter pour un refus certain.
+### Obtenir un jeton (obligatoire depuis le 2 juillet 2025)
+
+Tout appel sans en-tête `Authorization` reçoit un **401**, usage commercial ou
+non. La marche à suivre :
+
+1. Enregistre l'application sur
+   [boardgamegeek.com/applications](https://boardgamegeek.com/applications), en
+   choisissant **non commercial**. **Compte une semaine ou plus** avant la
+   réponse : la demande est examinée à la main.
+2. Une fois l'application approuvée, crée un jeton depuis la même page
+   (bouton « Tokens »).
+3. Renseigne `BGG_API_TOKEN` dans ton `.env` local **et** dans les variables
+   d'environnement Vercel — puis **redéploie** : une variable ajoutée ne
+   s'applique pas aux déploiements déjà en ligne.
+
+Sans jeton, l'application ne les appelle pas du tout : elle le dit et laisse le
+formulaire manuel disponible, plutôt que de solliciter leurs serveurs pour un
+refus certain — ou de leur imputer une panne.
+
+### Ce que leurs conditions imposent, et comment on s'y conforme
+
+| Leur règle | Ici |
+|---|---|
+| Appels **depuis le serveur**, pas depuis le navigateur | Action serveur ; le jeton ne quitte jamais le serveur |
+| **Mettre les résultats en cache** | Réponses gardées 24 h (`next.revalidate`) |
+| **Limiter le nombre d'appels** | Deux requêtes par recherche (`/search` puis `/thing` groupé), déclenchées par un bouton et non à la frappe |
+| Domaine **`boardgamegeek.com`, sans `www`** | C'est la seule racine appelée |
+| Logo **« Powered by BGG »** sur les applications publiques | Affiché sous le sélecteur et sur la fiche de tout jeu repris de leur catalogue |
+
+Le logo n'est pas versionné ici — c'est leur marque. Télécharge-le depuis la
+même page, dépose-le dans `public/`, et indique son chemin dans
+`NEXT_PUBLIC_BGG_LOGO_URL`. Sans cela, la mention s'affiche en toutes lettres :
+fonctionnel et honnête, mais pas encore tout à fait conforme.
 
 - L'appel se fait **par une action serveur** (`src/lib/actions/bgg.ts`), pas
   par une route `/api` interrogée en `fetch`. Une route API est une seconde
@@ -235,19 +260,18 @@ formulaire fonctionne entièrement à la main si BGG ne répond pas.
   motif réel (`HTTP 403`, `TimeoutError`…), et le serveur le journalise.
 - Un en-tête `User-Agent` explicite est envoyé : BGG est derrière Cloudflare,
   qui refuse les clients non identifiés.
-- **Deux racines sont essayées dans l'ordre** : `boardgamegeek.com` puis
-  `api.geekdo.com`, les deux points d'entrée officiels de la même API. Chaque
-  refus est journalisé avec son statut, l'en-tête `server`, l'identifiant
-  `cf-ray` et le début du corps. C'est ce qui a fini par identifier le
-  problème : `www-authenticate: Bearer realm="xml api"` disait qu'il manquait
-  un jeton, là où un « HTTP 401 » nu nous avait fait soupçonner l'hébergeur
-  pendant trois allers-retours.
+- **Chaque refus est journalisé** avec son statut, l'en-tête `server`,
+  l'identifiant `cf-ray`, l'en-tête `www-authenticate` et le début du corps.
+  C'est ce qui a fini par identifier le problème : `Bearer realm="xml api"`
+  disait qu'il manquait un jeton, là où un « HTTP 401 » nu nous avait fait
+  soupçonner l'hébergeur pendant trois allers-retours.
 - **Cinq issues, cinq messages** : jeton absent, jeton refusé, aucun résultat,
   service injoignable, session perdue. Chacune appelle un remède différent —
   s'inscrire, renouveler, chercher autrement, attendre, se reconnecter.
-- `BGG_API_BASES` (séparées par des virgules) permet de viser d'autres
-  serveurs — c'est ce dont se servent les tests, qui vérifient aussi la
-  bascule d'un hôte à l'autre.
+- `BGG_API_BASE` permet de viser un autre serveur — c'est ce dont se servent
+  les tests, dont le faux BoardGameGeek **refuse tout appel sans le bon
+  jeton** : la suite entière ne passe que si l'application l'envoie
+  réellement.
 - Une jaquette n'est recopiée que si son URL est en HTTPS **et** sur un hôte de
   BGG — le champ est caché, donc falsifiable.
 - `Game.bggId` est unique : deux personnes qui importent le même jeu partagent

@@ -97,17 +97,6 @@ test.describe("Recherche BoardGameGeek", () => {
     await expect(page.getByText(/Timeout|abort/i)).toBeVisible();
   });
 
-  test("un hôte qui refuse fait basculer sur le second, sans que personne ne le voie", async ({ page }) => {
-    await login(page, "chloe");
-    await chercher(page, "bascule");
-
-    // La racine principale renvoie 401 — ce que le pare-feu de BoardGameGeek
-    // fait depuis une adresse d'hébergeur. La seconde doit prendre le relais
-    // et la recherche aboutir normalement.
-    await expect(page.getByRole("button", { name: /Wingspan/ }).first()).toBeVisible();
-    await expect(page.getByText(/ne répond pas/)).toHaveCount(0);
-  });
-
   test("un jeton refusé est annoncé comme tel, pas comme une panne", async ({ page }) => {
     await login(page, "chloe");
     await chercher(page, "jetonko");
@@ -117,6 +106,17 @@ test.describe("Recherche BoardGameGeek", () => {
     // Avoir confondu les deux a coûté trois allers-retours.
     await expect(page.getByText(/a refusé notre jeton/)).toBeVisible();
     await expect(page.getByText(/ne répond pas/)).toHaveCount(0);
+  });
+
+  test("la mention « Powered by BGG » accompagne les données reprises", async ({ page }) => {
+    await login(page, "chloe");
+    await chercher(page, "wingspan");
+
+    // Leurs conditions l'exigent pour toute application publique, et la
+    // mention doit pointer vers BoardGameGeek.
+    const mention = page.getByRole("link", { name: /Powered by BGG/ });
+    await expect(mention.first()).toBeVisible();
+    await expect(mention.first()).toHaveAttribute("href", "https://boardgamegeek.com");
   });
 
   test("si le filtre par type ne ramène rien, la recherche est retentée sans lui", async ({ page }) => {

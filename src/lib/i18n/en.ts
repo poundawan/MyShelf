@@ -573,7 +573,8 @@ export const en: Dictionary = {
   "bgg.failed": "The search could not go through. Fill the form in by hand, nothing is lost.",
   "bgg.picked": "Details taken from {title}. You can correct anything below.",
   "bgg.players": "players",
-  "bgg.credit": "Data and images: BoardGameGeek. Non-commercial use.",
+  "bgg.poweredBy": "Powered by BGG",
+  "bgg.credit": "Data and images: BoardGameGeek.",
 
   // ---------- relative dates ----------
   "time.now": "just now",

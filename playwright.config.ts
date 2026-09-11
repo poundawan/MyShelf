@@ -92,7 +92,7 @@ export default defineConfig({
         DIRECT_URL: process.env.DIRECT_URL ?? "",
         AUTH_SECRET: process.env.AUTH_SECRET ?? "",
         // Deux racines, comme en production : la principale puis le secours.
-        BGG_API_BASES: `http://127.0.0.1:${PORT_SERVICES}/xmlapi2,http://127.0.0.1:${PORT_SERVICES}/secours/xmlapi2`,
+        BGG_API_BASE: `http://127.0.0.1:${PORT_SERVICES}/xmlapi2`,
         // Le faux BoardGameGeek refuse tout appel sans ce jeton : la suite
         // entière vérifie donc que l'application l'envoie.
         BGG_API_TOKEN: "jeton-de-test",

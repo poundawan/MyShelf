@@ -21,10 +21,8 @@ import path from "node:path";
  *   attente   → HTTP 202, comme BGG quand il prépare encore la réponse
  *   sanstype  → vide si le filtre `type` est présent, peuplée sinon
  *   lent      → ne répond jamais, pour éprouver le délai d'attente
- *   bascule   → HTTP 401 sur la racine principale, réponse normale sur la
- *               racine de secours.
- *   jetonko   → HTTP 401 partout, jeton valide ou non : le cas d'un jeton
- *               expiré ou révoqué.
+ *   jetonko   → HTTP 401 malgré un jeton valide : le cas d'un jeton expiré
+ *               ou révoqué.
  *
  * Côté adresses, le terme cherché sert aussi d'aiguillage :
  *   lyon        → trois communes, dans l'ordre d'importance de l'API
@@ -111,16 +109,11 @@ const serveur = createServer((requete, reponse) => {
   }
 
   // ---- BoardGameGeek ----
-  // Deux racines pour un seul serveur : `/xmlapi2` joue boardgamegeek.com,
-  // `/secours/xmlapi2` joue api.geekdo.com.
-  const surSecours = url.pathname.startsWith("/secours/");
-
   if (requete.headers.authorization !== `Bearer ${JETON_ATTENDU}`) {
     return xml("Unauthorized. See https://boardgamegeek.com/using_the_xml_api", 401);
   }
 
   if (terme === "jetonko") return xml("Unauthorized.", 401);
-  if (terme === "bascule" && !surSecours) return xml("<html>Unauthorized</html>", 401);
 
   if (url.pathname.endsWith("/thing")) {
     // Les identifiants demandés viennent de la recherche : on renvoie les
