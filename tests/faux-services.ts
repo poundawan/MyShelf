@@ -22,8 +22,9 @@ import path from "node:path";
  *   sanstype  → vide si le filtre `type` est présent, peuplée sinon
  *   lent      → ne répond jamais, pour éprouver le délai d'attente
  *   bascule   → HTTP 401 sur la racine principale, réponse normale sur la
- *               racine de secours : c'est ce que fait le pare-feu de BGG face
- *               à une adresse d'hébergeur.
+ *               racine de secours.
+ *   jetonko   → HTTP 401 partout, jeton valide ou non : le cas d'un jeton
+ *               expiré ou révoqué.
  *
  * Côté adresses, le terme cherché sert aussi d'aiguillage :
  *   lyon        → trois communes, dans l'ordre d'importance de l'API
@@ -35,6 +36,16 @@ import path from "node:path";
  */
 
 const PORT = Number(process.env.FAUX_SERVICES_PORT ?? 3199);
+
+/**
+ * Jeton attendu par le faux BoardGameGeek.
+ *
+ * Tout appel sans cet en-tête reçoit un 401, comme le vrai depuis juillet 2025.
+ * Conséquence utile : l'ensemble des tests BGG ne passe que si l'application
+ * envoie réellement son `Authorization`. Nul besoin d'un test dédié — c'est
+ * toute la suite qui le vérifie.
+ */
+const JETON_ATTENDU = process.env.FAUX_BGG_TOKEN ?? "jeton-de-test";
 const FIXTURES = path.join(__dirname, "fixtures");
 const lire = (nom: string) => readFileSync(path.join(FIXTURES, nom), "utf8");
 
@@ -103,6 +114,12 @@ const serveur = createServer((requete, reponse) => {
   // Deux racines pour un seul serveur : `/xmlapi2` joue boardgamegeek.com,
   // `/secours/xmlapi2` joue api.geekdo.com.
   const surSecours = url.pathname.startsWith("/secours/");
+
+  if (requete.headers.authorization !== `Bearer ${JETON_ATTENDU}`) {
+    return xml("Unauthorized. See https://boardgamegeek.com/using_the_xml_api", 401);
+  }
+
+  if (terme === "jetonko") return xml("Unauthorized.", 401);
   if (terme === "bascule" && !surSecours) return xml("<html>Unauthorized</html>", 401);
 
   if (url.pathname.endsWith("/thing")) {

@@ -76,7 +76,7 @@ export default defineConfig({
       timeout: 30_000,
       stdout: "pipe",
       stderr: "pipe",
-      env: { FAUX_SERVICES_PORT: String(PORT_SERVICES) },
+      env: { FAUX_SERVICES_PORT: String(PORT_SERVICES), FAUX_BGG_TOKEN: "jeton-de-test" },
     },
     {
       // On teste le vrai build de production, pas le serveur de développement :
@@ -93,6 +93,9 @@ export default defineConfig({
         AUTH_SECRET: process.env.AUTH_SECRET ?? "",
         // Deux racines, comme en production : la principale puis le secours.
         BGG_API_BASES: `http://127.0.0.1:${PORT_SERVICES}/xmlapi2,http://127.0.0.1:${PORT_SERVICES}/secours/xmlapi2`,
+        // Le faux BoardGameGeek refuse tout appel sans ce jeton : la suite
+        // entière vérifie donc que l'application l'envoie.
+        BGG_API_TOKEN: "jeton-de-test",
         ADRESSE_API_BASE: `http://127.0.0.1:${PORT_SERVICES}`,
       },
     },

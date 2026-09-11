@@ -567,6 +567,8 @@ export const en: Dictionary = {
   "bgg.searching": "Searching…",
   "bgg.empty": "No game by that name on BoardGameGeek. Fill the form in by hand.",
   "bgg.unreachable": "BoardGameGeek is not responding. Fill the form in by hand, nothing is lost.",
+  "bgg.notConfigured": "The BoardGameGeek import is not enabled yet: their API has required registration since July 2025. Fill the form in by hand in the meantime.",
+  "bgg.tokenRejected": "BoardGameGeek rejected our application token. It probably needs renewing.",
   "bgg.session": "Your session is no longer recognised. Sign in again in another tab, then come back: what you typed here stays put.",
   "bgg.failed": "The search could not go through. Fill the form in by hand, nothing is lost.",
   "bgg.picked": "Details taken from {title}. You can correct anything below.",

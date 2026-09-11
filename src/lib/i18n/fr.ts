@@ -564,6 +564,8 @@ export const fr: Dictionary = {
   "bgg.searching": "Recherche…",
   "bgg.empty": "Aucun jeu de ce nom chez BoardGameGeek. Remplis la fiche à la main.",
   "bgg.unreachable": "BoardGameGeek ne répond pas. Remplis la fiche à la main, rien n'est perdu.",
+  "bgg.notConfigured": "L'import BoardGameGeek n'est pas encore activé : leur API demande une inscription depuis juillet 2025. Remplis la fiche à la main en attendant.",
+  "bgg.tokenRejected": "BoardGameGeek a refusé notre jeton d'application. Il est sans doute à renouveler.",
   "bgg.session": "Ta session n'est plus reconnue. Ouvre un onglet, reconnecte-toi, puis reviens : ce que tu as saisi ici reste en place.",
   "bgg.failed": "La recherche n'a pas pu aboutir. Remplis la fiche à la main, rien n'est perdu.",
   "bgg.picked": "Fiche reprise : {title}. Tu peux tout corriger ci-dessous.",

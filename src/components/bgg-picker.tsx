@@ -38,6 +38,18 @@ export function BggPicker({ onChoisir }: { onChoisir: (jeu: JeuBgg) => void }) {
         return;
       }
 
+      if (donnees.statut === "nonConfigure") {
+        setResultats(null);
+        setMessage(t("bgg.notConfigured"));
+        return;
+      }
+
+      if (donnees.statut === "jetonRefuse") {
+        setResultats(null);
+        setMessage(t("bgg.tokenRejected"));
+        return;
+      }
+
       if (donnees.statut === "injoignable") {
         setResultats(null);
         setMessage(`${t("bgg.unreachable")}${donnees.detail ? ` (${donnees.detail})` : ""}`);

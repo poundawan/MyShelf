@@ -108,6 +108,17 @@ test.describe("Recherche BoardGameGeek", () => {
     await expect(page.getByText(/ne répond pas/)).toHaveCount(0);
   });
 
+  test("un jeton refusé est annoncé comme tel, pas comme une panne", async ({ page }) => {
+    await login(page, "chloe");
+    await chercher(page, "jetonko");
+
+    // Depuis juillet 2025, BoardGameGeek exige une inscription : un 401 veut
+    // dire « ton jeton ne convient pas », pas « nos serveurs sont tombés ».
+    // Avoir confondu les deux a coûté trois allers-retours.
+    await expect(page.getByText(/a refusé notre jeton/)).toBeVisible();
+    await expect(page.getByText(/ne répond pas/)).toHaveCount(0);
+  });
+
   test("si le filtre par type ne ramène rien, la recherche est retentée sans lui", async ({ page }) => {
     await login(page, "chloe");
     await chercher(page, "sanstype");

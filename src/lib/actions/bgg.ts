@@ -23,13 +23,16 @@ import { rechercherJeuxBgg, type JeuBgg } from "@/lib/bgg";
 export type ResultatRechercheBgg = {
   jeux: JeuBgg[];
   /**
-   * `ok` : BoardGameGeek a répondu (la liste peut être vide).
-   * `injoignable` : réseau, délai, ou erreur HTTP de leur côté.
-   * `session` : c'est nous qui refusons, la session n'est plus reconnue.
+   * `ok`           : BoardGameGeek a répondu (la liste peut être vide).
+   * `nonConfigure` : aucun jeton d'application n'est réglé de notre côté.
+   * `jetonRefuse`  : BoardGameGeek a rejeté notre jeton.
+   * `injoignable`  : réseau, délai, ou autre erreur de leur côté.
+   * `session`      : c'est nous qui refusons, la session n'est plus reconnue.
    *
-   * Les confondre laisse chercher en boucle un jeu qui existe.
+   * Cinq issues, cinq remèdes. Les confondre a déjà coûté trois allers-retours
+   * à chercher une panne d'hébergeur là où il manquait une inscription.
    */
-  statut: "ok" | "injoignable" | "session";
+  statut: "ok" | "injoignable" | "nonConfigure" | "jetonRefuse" | "session";
   detail?: string;
 };
 

@@ -205,9 +205,18 @@ un document exécutable.
 ## Catalogue BoardGameGeek
 
 L'ajout d'un jeu propose de reprendre sa fiche depuis
-[BoardGameGeek](https://boardgamegeek.com) (API XML v2, sans clé) : titre,
-nombre de joueurs, durée, âge et jaquette. Tout reste modifiable ensuite, et le
+[BoardGameGeek](https://boardgamegeek.com) (API XML v2) : titre, nombre de
+joueurs, durée, âge et jaquette. Tout reste modifiable ensuite, et le
 formulaire fonctionne entièrement à la main si BGG ne répond pas.
+
+> **Un jeton est obligatoire.** Depuis le 2 juillet 2025, l'API XML exige une
+> inscription : tout appel sans en-tête `Authorization` reçoit un **401**,
+> usage commercial ou non. Demande un jeton d'application sur
+> [Using the XML API](https://boardgamegeek.com/using_the_xml_api), puis
+> renseigne `BGG_API_TOKEN` (en local dans `.env`, et dans les variables
+> d'environnement Vercel). Sans jeton, l'application ne les appelle pas du
+> tout : elle le dit et laisse le formulaire manuel disponible, plutôt que de
+> les solliciter pour un refus certain.
 
 - L'appel se fait **par une action serveur** (`src/lib/actions/bgg.ts`), pas
   par une route `/api` interrogée en `fetch`. Une route API est une seconde
@@ -227,12 +236,15 @@ formulaire fonctionne entièrement à la main si BGG ne répond pas.
 - Un en-tête `User-Agent` explicite est envoyé : BGG est derrière Cloudflare,
   qui refuse les clients non identifiés.
 - **Deux racines sont essayées dans l'ordre** : `boardgamegeek.com` puis
-  `api.geekdo.com`. Depuis Vercel, la première a répondu **401** là où le
-  développement local passait — le pare-feu de BGG traite différemment les
-  adresses d'hébergeurs. La seconde est l'autre point d'entrée officiel de la
-  même API. Chaque refus est journalisé avec son statut, l'en-tête `server`,
-  l'identifiant `cf-ray` et le début du corps : un « HTTP 401 » nu ne dit pas
-  qui a refusé.
+  `api.geekdo.com`, les deux points d'entrée officiels de la même API. Chaque
+  refus est journalisé avec son statut, l'en-tête `server`, l'identifiant
+  `cf-ray` et le début du corps. C'est ce qui a fini par identifier le
+  problème : `www-authenticate: Bearer realm="xml api"` disait qu'il manquait
+  un jeton, là où un « HTTP 401 » nu nous avait fait soupçonner l'hébergeur
+  pendant trois allers-retours.
+- **Cinq issues, cinq messages** : jeton absent, jeton refusé, aucun résultat,
+  service injoignable, session perdue. Chacune appelle un remède différent —
+  s'inscrire, renouveler, chercher autrement, attendre, se reconnecter.
 - `BGG_API_BASES` (séparées par des virgules) permet de viser d'autres
   serveurs — c'est ce dont se servent les tests, qui vérifient aussi la
   bascule d'un hôte à l'autre.

@@ -1,23 +1,25 @@
 /**
  * Accès au catalogue BoardGameGeek (API XML v2).
  *
- * C'est la seule base ludique publique encore vivante et sans clé : Board Game
- * Atlas a fermé en 2023, Tric Trac n'expose plus d'API. Usage non commercial,
- * attribution demandée — d'où la mention affichée sous le sélecteur.
+ * C'est la seule base ludique publique encore vivante : Board Game Atlas a
+ * fermé en 2023, Tric Trac n'expose plus d'API.
  *
- * Aucun secret n'est nécessaire, mais l'appel reste côté serveur : BGG ne
- * renvoie pas d'en-tête CORS, et cela évite d'exposer les navigateurs de nos
- * membres à un tiers.
+ * **Depuis le 2 juillet 2025, elle exige une inscription et un jeton.** Tout
+ * appel sans en-tête `Authorization` reçoit un 401 — commercial ou non. Le
+ * jeton se demande sur https://boardgamegeek.com/using_the_xml_api et se
+ * fournit ici par la variable d'environnement `BGG_API_TOKEN`.
+ *
+ * L'appel reste côté serveur : BGG ne renvoie pas d'en-tête CORS, cela évite
+ * d'exposer les navigateurs de nos membres à un tiers, et surtout le jeton n'a
+ * rien à faire dans du code envoyé au navigateur.
  */
 
 /**
  * Racines de l'API, essayées dans l'ordre.
  *
- * BoardGameGeek sert la même API sous deux noms. Depuis Vercel,
- * `boardgamegeek.com` a répondu **401** là où le développement local passe :
- * son pare-feu traite différemment les adresses d'hébergeurs. `api.geekdo.com`
- * est le second point d'entrée officiel, et il ne partage pas forcément les
- * mêmes règles.
+ * BoardGameGeek sert la même API sous deux noms ; les deux exigent le même
+ * jeton. Garder la seconde ne coûte rien quand la première répond, et dépanne
+ * si l'une des deux tombe.
  *
  * Surchargeable par `BGG_API_BASES` (séparées par des virgules) : les tests
  * pointent vers un faux BoardGameGeek local, ce qui permet de vérifier toute
@@ -30,11 +32,21 @@ const BASES = (process.env.BGG_API_BASES ||
   .filter(Boolean);
 
 /**
- * BoardGameGeek est derrière un pare-feu applicatif qui filtre sur l'en-tête
- * d'agent. La forme « Mozilla/5.0 (compatible; … ) » est celle qu'emploient les
- * robots bien élevés : elle passe les filtres naïfs sans mentir sur qui appelle.
+ * BoardGameGeek demande aux applications de s'identifier. On le fait
+ * franchement : le refus n'a jamais eu de rapport avec cet en-tête, et se
+ * déguiser en navigateur n'aurait servi qu'à brouiller la piste.
  */
-const AGENT = "Mozilla/5.0 (compatible; MyShelf/1.0; +https://github.com/poundawan/MyShelf)";
+const AGENT = "MyShelf/1.0 (+https://github.com/poundawan/MyShelf)";
+
+/**
+ * Jeton d'application, délivré après inscription auprès de BoardGameGeek.
+ *
+ * Sans lui, chaque appel repart en 401 : inutile de solliciter leurs serveurs
+ * pour un refus certain, et surtout inutile de présenter ce refus comme une
+ * panne de leur côté.
+ */
+const JETON = process.env.BGG_API_TOKEN?.trim() || "";
+export const jetonConfigure = () => JETON.length > 0;
 
 /** BGG est lent quand son cache est froid ; au-delà, on rend la main. */
 const DELAI_MS = 8000;
@@ -73,7 +85,15 @@ export type JeuBgg = {
  */
 export type ResultatRecherche = {
   jeux: JeuBgg[];
-  statut: "ok" | "injoignable";
+  /**
+   * `nonConfigure` : aucun jeton en environnement — c'est à nous de le régler.
+   * `jetonRefuse`  : BoardGameGeek a rejeté le jeton fourni (401).
+   * `injoignable`  : tout le reste, de leur côté.
+   *
+   * Trois remèdes différents : s'inscrire, renouveler le jeton, attendre.
+   * Les confondre a déjà coûté trois allers-retours.
+   */
+  statut: "ok" | "injoignable" | "nonConfigure" | "jetonRefuse";
   detail?: string;
 };
 
@@ -82,10 +102,14 @@ export async function rechercherJeuxBgg(requete: string): Promise<ResultatRecher
   const terme = requete.trim();
   if (terme.length < 2) return { jeux: [], statut: "ok" };
 
+  // Sans jeton, la réponse est connue d'avance. On ne va pas déranger leurs
+  // serveurs pour se faire refouler, ni faire croire qu'ils sont en panne.
+  if (!JETON) return { jeux: [], statut: "nonConfigure" };
+
   const recherche = await recuperer(
     `/search?type=boardgame,boardgameexpansion&query=${encodeURIComponent(terme)}`,
   );
-  if (!recherche.ok) return { jeux: [], statut: "injoignable", detail: recherche.detail };
+  if (!recherche.ok) return echec(recherche.detail);
 
   let ids = analyserIdsRecherche(recherche.xml);
 
@@ -101,9 +125,18 @@ export async function rechercherJeuxBgg(requete: string): Promise<ResultatRecher
   if (ids.length === 0) return { jeux: [], statut: "ok" };
 
   const fiches = await recuperer(`/thing?id=${ids.join(",")}`);
-  if (!fiches.ok) return { jeux: [], statut: "injoignable", detail: fiches.detail };
+  if (!fiches.ok) return echec(fiches.detail);
 
   return { jeux: analyserFiches(fiches.xml), statut: "ok" };
+}
+
+/**
+ * Un 401 alors qu'un jeton a été envoyé ne veut pas dire la même chose qu'une
+ * panne : le jeton est refusé, expiré ou révoqué, et c'est réparable.
+ */
+function echec(detail: string): ResultatRecherche {
+  const statut = detail.includes("HTTP 401") ? "jetonRefuse" : "injoignable";
+  return { jeux: [], statut, detail };
 }
 
 /**
@@ -160,7 +193,11 @@ async function recupererChez(base: string, chemin: string): Promise<Recuperation
   for (let tentative = 1; tentative <= TENTATIVES_202; tentative++) {
     try {
       const reponse = await fetch(url, {
-        headers: { Accept: "application/xml, text/xml", "User-Agent": AGENT },
+        headers: {
+          Accept: "application/xml, text/xml",
+          "User-Agent": AGENT,
+          ...(JETON ? { Authorization: `Bearer ${JETON}` } : {}),
+        },
         signal: AbortSignal.timeout(DELAI_MS),
         // Les fiches BGG ne bougent pas d'un jour à l'autre.
         next: { revalidate: 60 * 60 * 24 },
