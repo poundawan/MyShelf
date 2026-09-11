@@ -26,6 +26,7 @@ import path from "node:path";
  *
  * Côté adresses, le terme cherché sert aussi d'aiguillage :
  *   lyon        → trois communes, dans l'ordre d'importance de l'API
+ *   doublons    → trois résultats partageant le même code INSEE
  *   vileurbane  → Villeurbanne, malgré la faute de frappe
  *   fantome     → une commune absente du référentiel embarqué
  *   panne       → HTTP 503
@@ -71,6 +72,14 @@ const COMMUNES_BAN: Record<string, [code: string, nom: string, cp: string, dep: 
   // Une commune que le référentiel embarqué ne connaît pas : elle ne doit pas
   // être proposée, faute de pouvoir la situer.
   fantome: [["99999", "Commune Fantôme", "99999", "99"]],
+  // Ce que renverrait l'API si le filtre par type cessait d'être honoré : des
+  // adresses, toutes dans la même commune. La liste ne doit pas répéter Lyon
+  // cinq fois.
+  doublons: [
+    ["69123", "Rue de la République", "69002", "69"],
+    ["69123", "Place Bellecour", "69002", "69"],
+    ["69123", "Quai Saint-Antoine", "69002", "69"],
+  ],
 };
 
 const serveur = createServer((requete, reponse) => {

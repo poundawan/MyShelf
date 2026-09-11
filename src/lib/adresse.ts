@@ -1,11 +1,20 @@
 /**
- * Autocomplétion des communes par la Base Adresse Nationale.
+ * Autocomplétion des communes par le géocodage de la Géoplateforme (IGN).
  *
- * `api-adresse.data.gouv.fr` est le géocodeur du service public français :
- * gratuit, sans clé, sans quota déclaré, et surtout classé par importance
- * réelle — taper « lyon » remonte Lyon avant Lyons-la-Forêt, et une faute de
- * frappe reste rattrapée. Le référentiel embarqué, lui, ne sait trier que par
+ * C'est le géocodeur du service public français, adossé à la Base Adresse
+ * Nationale : gratuit, sans clé, et surtout classé par importance réelle —
+ * taper « lyon » remonte Lyon avant Lyons-la-Forêt, et une faute de frappe
+ * reste rattrapée. Le référentiel embarqué, lui, ne sait trier que par
  * longueur de nom.
+ *
+ * **L'ancienne adresse `api-adresse.data.gouv.fr` est morte.** L'API a été
+ * transférée à l'IGN courant 2025, puis cette URL a été décommissionnée fin
+ * janvier 2026. Je l'avais codée en dur en me fiant à ce que je croyais savoir,
+ * sans vérifier — la même erreur que pour BoardGameGeek.
+ *
+ * Limites annoncées : 50 requêtes par seconde et par adresse IP sur le
+ * géocodage. La saisie est temporisée et les réponses mises en cache : on en
+ * est très loin.
  *
  * L'appel part du serveur, pas du navigateur : la politique de contenu
  * n'autorise que notre propre domaine en `connect-src`, et cela évite d'envoyer
@@ -16,7 +25,7 @@
  * coordonnées : une réponse d'API ne décide pas d'où se trouve quelqu'un.
  */
 
-const BASE = process.env.ADRESSE_API_BASE || "https://api-adresse.data.gouv.fr";
+const BASE = (process.env.ADRESSE_API_BASE || "https://data.geopf.fr/geocodage").trim().replace(/\/$/, "");
 
 /** Au-delà, on rend la main : c'est une aide à la saisie, pas une opération. */
 const DELAI_MS = 4000;
@@ -51,7 +60,11 @@ export async function suggererCommunes(terme: string, limite: number): Promise<R
   const q = terme.trim();
   if (q.length < 2) return { statut: "ok", communes: [] };
 
-  const url = `${BASE}/search/?q=${encodeURIComponent(q)}&type=municipality&limit=${limite}`;
+  // Forme héritée de la Base Adresse Nationale, que la Géoplateforme reprend.
+  // `type=municipality` ne garde que les communes ; si ce filtre venait à ne
+  // plus être honoré, on recevrait des adresses — dont le `citycode` reste
+  // juste, et que l'appelant dédoublonne.
+  const url = `${BASE}/search?q=${encodeURIComponent(q)}&type=municipality&limit=${limite}`;
 
   try {
     const reponse = await fetch(url, {
@@ -64,7 +77,10 @@ export async function suggererCommunes(terme: string, limite: number): Promise<R
 
     if (!reponse.ok) {
       const detail = `HTTP ${reponse.status}`;
-      console.error(`Base Adresse Nationale : ${detail} sur ${url}`);
+      // Le corps dit souvent ce que le statut tait : quota, paramètre refusé,
+      // service déplacé. Ne pas le journaliser a déjà coûté cher.
+      const debutCorps = (await reponse.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 200);
+      console.error(`Géocodage : ${detail} sur ${url} | corps=${debutCorps}`);
       return { statut: "injoignable", detail };
     }
 
@@ -72,7 +88,7 @@ export async function suggererCommunes(terme: string, limite: number): Promise<R
     return { statut: "ok", communes: (donnees.features ?? []).map(lire).filter(estValide) };
   } catch (erreur) {
     const detail = erreur instanceof Error ? `${erreur.name}: ${erreur.message}` : "erreur inconnue";
-    console.error(`Base Adresse Nationale injoignable — ${detail}`);
+    console.error(`Géocodage injoignable sur ${url} — ${detail}`);
     return { statut: "injoignable", detail };
   }
 }

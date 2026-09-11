@@ -16,6 +16,10 @@ const p = (latitude: number, longitude: number) => ({ latitude, longitude });
 
 type Commune = { code: string; nom: string; latitude: number; longitude: number };
 
+/** Les options du sélecteur de commune, et elles seules : sur ces pages, les
+ *  <select> de niveau et de langue exposent aussi le rôle « option ». */
+const optionsCommune = (page: Page) => page.locator('ul[role="listbox"] [role="option"]');
+
 const commune = (code: string) =>
   one<Commune>('SELECT code, nom, latitude, longitude FROM "Commune" WHERE code = $1', [code]);
 
@@ -154,7 +158,7 @@ test.describe("Autocomplétion par la Base Adresse Nationale", () => {
     await page.goto("/profile/edit");
 
     await page.fill("#city", "lyon");
-    const options = page.getByRole("option");
+    const options = optionsCommune(page);
     await options.first().waitFor();
 
     // L'API classe Lyon avant Lyons-la-Forêt. Le recoupement avec le
@@ -179,6 +183,19 @@ test.describe("Autocomplétion par la Base Adresse Nationale", () => {
     await expect(page.getByText(/liste embarquée/)).toHaveCount(0);
   });
 
+  test("plusieurs résultats d'une même commune n'en font qu'un dans la liste", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    // Si le filtre par type cessait d'être honoré, l'API renverrait des
+    // adresses : dix rues de Lyon ne doivent pas devenir dix fois « Lyon ».
+    await page.fill("#city", "doublons");
+    const options = optionsCommune(page);
+    await options.first().waitFor();
+    await expect(options).toHaveCount(1);
+    await expect(options.first()).toContainText("Lyon");
+  });
+
   test("une commune absente du référentiel n'est pas proposée", async ({ page }) => {
     await login(page, "chloe");
     await page.goto("/profile/edit");
@@ -196,7 +213,7 @@ test.describe("Autocomplétion par la Base Adresse Nationale", () => {
     await page.fill("#city", "panne");
     // Le formulaire reste utilisable — la France compte des communes en
     // « Pannes » — et l'écran signale que le service n'a pas répondu.
-    await expect(page.getByRole("option").first()).toBeVisible();
+    await expect(optionsCommune(page).first()).toBeVisible();
     await expect(page.getByText(/liste embarquée/)).toBeVisible();
   });
 

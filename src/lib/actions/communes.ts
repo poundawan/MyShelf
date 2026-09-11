@@ -90,8 +90,13 @@ export async function rechercherCommunesAction(terme: string): Promise<ResultatC
  * connaît pas sont écartés : ce sont des communes nées après la dernière
  * génération du référentiel, et les proposer reviendrait à offrir un choix
  * sans position.
+ *
+ * Le dédoublonnage n'est pas décoratif : si le filtre par type cessait d'être
+ * honoré, l'API renverrait des adresses, et dix rues de Lyon deviendraient dix
+ * fois « Lyon » dans la liste.
  */
-async function recouper(codes: string[]): Promise<CommuneTrouvee[]> {
+async function recouper(codesBruts: string[]): Promise<CommuneTrouvee[]> {
+  const codes = [...new Set(codesBruts)];
   if (codes.length === 0) return [];
 
   const connues = await prisma.commune.findMany({ where: { code: { in: codes } }, select: CHAMPS });

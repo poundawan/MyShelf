@@ -295,13 +295,21 @@ vérité utile.
 Quand la commune n'est pas connue, l'application affiche **« distance
 inconnue »** et invite à la renseigner. Elle n'estime rien.
 
-### L'autocomplétion passe par la Base Adresse Nationale
+### L'autocomplétion passe par le géocodage de la Géoplateforme
 
-Les suggestions viennent d'`api-adresse.data.gouv.fr`, le géocodeur du service
-public français : gratuit, sans clé, sans quota déclaré. Il classe par
-importance réelle — « lyon » remonte Lyon avant Lyons-la-Forêt — et rattrape
-les fautes de frappe, deux choses qu'une liste locale ne sait pas faire : sans
-donnée de population, elle ne peut trier que par longueur de nom.
+Les suggestions viennent de `data.geopf.fr/geocodage`, le géocodeur du service
+public français adossé à la Base Adresse Nationale : gratuit, sans clé. Il
+classe par importance réelle — « lyon » remonte Lyon avant Lyons-la-Forêt — et
+rattrape les fautes de frappe, deux choses qu'une liste locale ne sait pas
+faire : sans donnée de population, elle ne peut trier que par longueur de nom.
+
+> **L'ancienne adresse `api-adresse.data.gouv.fr` est morte.** L'API a été
+> transférée à l'IGN courant 2025, puis cette URL décommissionnée fin janvier
+> 2026. Elle avait été codée en dur ici sans vérification — la même erreur que
+> pour BoardGameGeek, et le même remède : vérifier avant d'affirmer.
+
+Limites annoncées : 50 requêtes par seconde et par adresse IP. La saisie est
+temporisée (220 ms) et les réponses mises en cache 24 h : on en est loin.
 
 L'appel part du **serveur**, jamais du navigateur : la politique de contenu
 n'autorise que notre domaine en `connect-src`, et cela évite d'envoyer l'adresse
@@ -321,6 +329,10 @@ Trois garde-fous :
 
 Un code postal complet ne passe pas par l'API : il ne laisse aucune ambiguïté,
 et le référentiel local répond mieux, et toujours.
+
+Les résultats sont **dédoublonnés par code INSEE**. Ce n'est pas décoratif : si
+le filtre `type=municipality` cessait d'être honoré, l'API renverrait des
+adresses, et dix rues de Lyon deviendraient dix fois « Lyon » dans la liste.
 
 `ADRESSE_API_BASE` permet de viser un autre serveur — c'est ce dont se servent
 les tests.
