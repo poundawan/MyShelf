@@ -7,6 +7,11 @@ import { suggererCommunes } from "@/lib/adresse";
 /**
  * Autocomplétion des communes pour les formulaires.
  *
+ * Le référentiel couvre la France et les pays francophones voisins ; le
+ * service d'adresses, lui, s'arrête aux frontières françaises. Une recherche
+ * sur « Genève » ne trouvera donc rien chez lui et sera servie par le
+ * référentiel — ce n'est pas une panne, et l'écran ne doit pas le prétendre.
+ *
  * Les suggestions viennent de la **Base Adresse Nationale** : elle classe par
  * importance réelle et rattrape les fautes de frappe, là où le référentiel
  * embarqué ne sait trier que par longueur de nom.
@@ -27,6 +32,7 @@ import { suggererCommunes } from "@/lib/adresse";
 export type CommuneTrouvee = {
   code: string;
   nom: string;
+  pays: string;
   departement: string;
   codePostal: string | null;
 };
@@ -50,7 +56,7 @@ export type ResultatCommunes = {
 
 const MAX_RESULTATS = 8;
 
-const CHAMPS = { code: true, nom: true, departement: true, codePostal: true } as const;
+const CHAMPS = { code: true, nom: true, pays: true, departement: true, codePostal: true } as const;
 
 export async function rechercherCommunesAction(terme: string): Promise<ResultatCommunes> {
   if (typeof terme !== "string") return { communes: [], source: "local" };

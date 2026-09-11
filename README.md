@@ -343,11 +343,41 @@ les tests.
 
 ### Un référentiel embarqué pour les positions
 
-`prisma/data/communes.json.gz` (609 ko) contient les **35 273 communes
-françaises** — métropole, outre-mer, Corse, plus les arrondissements de Paris,
-Lyon et Marseille. C'est lui qui porte les coordonnées : une réponse d'API ne
+`prisma/data/communes.json.gz` (662 ko) contient **37 283 localités** : les
+35 273 communes françaises — métropole, outre-mer, Corse, plus les
+arrondissements de Paris, Lyon et Marseille — et 2 010 villes des pays
+francophones voisins. C'est lui qui porte les coordonnées : une réponse d'API ne
 décide pas d'où se trouve quelqu'un, et les distances doivent rester calculables
 même quand un service extérieur ne répond plus.
+
+| Pays | Localités | Couverture |
+| --- | --- | --- |
+| France | 35 273 | complète (IGN) |
+| Belgique | 549 | ~95 % des 581 communes |
+| Suisse | 1 299 | **~61 % des 2 131 communes** |
+| Luxembourg | 144 | complète |
+| Monaco | 18 | la ville et ses quartiers |
+
+La Suisse est le point faible : la source accessible ne descend pas jusqu'aux
+petites communes. Un joueur d'un village vaudois de 800 habitants ne trouvera
+pas sa commune et devra choisir la plus proche. C'est assumé et documenté
+plutôt que masqué — améliorer ce chiffre demande une source suisse dédiée.
+
+Deux nettoyages sont appliqués à la construction : les 208 quartiers suisses
+mêlés aux communes dans la source (« Adliswil / Hündli-Zopf ») sont écartés, et
+trois noms anglicisés sont ramenés à leur forme officielle — Brussels →
+Bruxelles, Geneva → Genève, Ostend → Oostende. Le reste emploie déjà les noms
+officiels locaux (Antwerpen, Basel, Kortrijk), ce qui est le bon choix dans des
+pays plurilingues. Monaco, absent de la source sous son propre nom, est ajouté
+explicitement.
+
+Les identifiants français restent des codes INSEE nus (`69266`) ; les autres
+sont préfixés du pays (`be-8693`), de sorte que les deux espaces de nommage ne
+puissent pas se télescoper.
+
+Le chargeur **compare** le fichier à la base : il ajoute ce qui manque et
+corrige ce qui diffère. Un simple compte ne suffisait pas — une correction de
+nom n'aurait jamais atteint les bases déjà peuplées.
 
 Le fichier est construit par `scripts/construire-communes.ts`, à relancer à la
 main quand le découpage administratif bouge (une fois par an tout au plus,
@@ -400,8 +430,10 @@ part.
 - **Pas de « utiliser ma position ».** L'application ne stocke que des
   positions de communes : récupérer des coordonnées exactes pour les arrondir
   aussitôt n'apporterait qu'une permission de plus à demander.
-- **France uniquement.** Le référentiel s'arrête aux frontières, et l'API
-  d'adresses aussi.
+- **France et voisins francophones seulement.** Le référentiel s'arrête à la
+  Belgique, la Suisse, le Luxembourg et Monaco ; le géocodeur, lui, s'arrête aux
+  frontières françaises — une recherche sur « Genève » est donc servie par le
+  référentiel, ce qui n'est pas une panne et ne s'affiche pas comme telle.
 
 ## Modèle de données
 

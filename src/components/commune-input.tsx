@@ -165,7 +165,12 @@ export function CommuneInput({
                 i === surligne ? "bg-wood/40 text-cream" : "text-ink"
               }`}
             >
-              <span className="truncate">{commune.nom}</span>
+              <span className="truncate">
+                {commune.nom}
+                {/* Sans le pays, « Genève » passerait pour une commune
+                    française parmi d'autres. */}
+                {commune.pays !== "FR" && <span className="ml-1.5 text-ink-soft">{commune.pays}</span>}
+              </span>
               <span className="flex-none text-xs text-ink-soft">
                 {commune.codePostal ?? commune.departement}
               </span>

@@ -28,10 +28,47 @@
 import { writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import path from "node:path";
+import { departementDepuisInsee } from "../src/lib/geo";
 
 const GEOJSON =
   "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/communes-version-simplifiee.geojson";
 const LA_POSTE = "https://raw.githubusercontent.com/high54/Communes-France-JSON/master/france.json";
+
+/**
+ * Localités du monde entier, dont on n'extrait que les pays francophones
+ * voisins. Aucune source aussi complète que l'IGN n'existe pour eux sur les
+ * dépôts accessibles ; celle-ci couvre l'essentiel, avec ses limites
+ * documentées plus bas.
+ */
+const MONDE =
+  "https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/json/countries%2Bstates%2Bcities.json";
+
+/** Pays repris en plus de la France. */
+const PAYS_VOISINS = ["BE", "CH", "LU", "MC"];
+
+/**
+ * Noms anglicisés dans la source, corrigés vers le nom officiel local.
+ *
+ * Le reste du jeu de données emploie déjà les noms officiels — « Antwerpen »,
+ * « Basel », « Kortrijk » —, ce qui est le bon choix dans des pays
+ * plurilingues. Seules ces trois entrées font exception, et ce sont
+ * précisément les plus visibles.
+ */
+const NOMS_CORRIGES: Record<string, string> = {
+  Brussels: "Bruxelles",
+  Geneva: "Genève",
+  Ostend: "Oostende",
+};
+
+/**
+ * Localités absentes de la source et ajoutées à la main.
+ *
+ * Monaco n'y figure que par ses quartiers — Monte-Carlo, La Condamine,
+ * Fontvieille — mais jamais sous son propre nom, alors que la principauté ne
+ * compte qu'une seule commune. Chercher « Monaco » ne donnait donc rien.
+ * Les quartiers sont conservés : ils restent des noms que les gens emploient.
+ */
+const AJOUTS: Ligne[] = [["mc-monaco", "Monaco", "98000", 43.73842, 7.42462, "MC", "Monaco"]];
 
 const SORTIE = path.join(__dirname, "..", "prisma", "data", "communes.json.gz");
 
@@ -110,6 +147,75 @@ async function recuperer<T>(url: string, quoi: string): Promise<T> {
   return donnees;
 }
 
+type PaysMonde = {
+  iso2?: string;
+  states?: { name?: string; cities?: { id?: number; name?: string; latitude?: string; longitude?: string }[] }[];
+};
+
+/** Une ligne du référentiel, dans l'ordre des colonnes du fichier. */
+type Ligne = [
+  code: string,
+  nom: string,
+  codePostal: string | null,
+  latitude: number,
+  longitude: number,
+  pays: string,
+  subdivision: string,
+];
+
+/** Localités des pays voisins, nettoyées. */
+async function voisins(): Promise<Ligne[]> {
+  const monde = await recuperer<PaysMonde[]>(MONDE, "les localités des pays voisins");
+  const lignes: Ligne[] = [];
+  let quartiers = 0;
+
+  for (const pays of monde) {
+    const iso = pays.iso2;
+    if (!iso || !PAYS_VOISINS.includes(iso)) continue;
+
+    const vus = new Set<string>();
+    for (const region of pays.states ?? []) {
+      for (const ville of region.cities ?? []) {
+        const brut = (ville.name ?? "").trim();
+        if (!brut || !ville.id) continue;
+
+        // « Adliswil / Hündli-Zopf » : la source mélange des quartiers suisses
+        // aux communes. Ils n'ajoutent rien — leur commune est déjà là — et
+        // encombreraient la liste de suggestions.
+        if (brut.includes(" / ")) {
+          quartiers++;
+          continue;
+        }
+
+        const lat = Number(ville.latitude);
+        const lng = Number(ville.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+        const nom = NOMS_CORRIGES[brut] ?? brut;
+        // Une même localité peut figurer dans deux subdivisions : on garde la
+        // première, la seconde n'apporterait qu'un doublon à l'écran.
+        const cle = `${nom}|${region.name ?? ""}`;
+        if (vus.has(cle)) continue;
+        vus.add(cle);
+
+        lignes.push([
+          `${iso.toLowerCase()}-${ville.id}`,
+          nom,
+          null,
+          arrondir(lat),
+          arrondir(lng),
+          iso,
+          (region.name ?? "").trim() || iso,
+        ]);
+      }
+    }
+  }
+
+  lignes.push(...AJOUTS);
+  console.log(`Pays voisins : ${lignes.length} localités (${quartiers} quartiers suisses écartés, ${AJOUTS.length} ajoutée(s) à la main).`);
+  return lignes;
+}
+
 async function principal() {
   const geo = await recuperer<{ features: { properties: { code: string; nom: string }; geometry: Geometrie | null }[] }>(
     GEOJSON, "le découpage des communes",
@@ -136,8 +242,7 @@ async function principal() {
     }
   }
 
-  /** [code INSEE, nom, code postal ou null, latitude, longitude] */
-  const lignes: [string, string, string | null, number, number][] = [];
+  const lignes: Ligne[] = [];
   let viaPoste = 0;
   const perdues: string[] = [];
 
@@ -160,7 +265,7 @@ async function principal() {
     }
 
     const cp = codesPostaux.get(code)?.sort()[0] ?? null;
-    lignes.push([code, f.properties.nom, cp, arrondir(position.lat), arrondir(position.lng)]);
+    lignes.push([code, f.properties.nom, cp, arrondir(position.lat), arrondir(position.lng), "FR", departementDepuisInsee(code)]);
   }
 
   // Arrondissements : le découpage géographique ne connaît que « Paris »,
@@ -182,23 +287,28 @@ async function principal() {
       codesPostaux.get(insee)?.sort()[0] ?? null,
       arrondir(position.lat),
       arrondir(position.lng),
+      "FR",
+      departementDepuisInsee(insee),
     ]);
     arrondissements++;
   }
 
+  const etrangeres = await voisins();
+  lignes.push(...etrangeres);
   lignes.sort((a, b) => a[0].localeCompare(b[0]));
 
   const document = {
-    source: { decoupage: GEOJSON, codesPostaux: LA_POSTE },
+    source: { decoupage: GEOJSON, codesPostaux: LA_POSTE, voisins: MONDE },
     genereLe: new Date().toISOString().slice(0, 10),
-    colonnes: ["insee", "nom", "codePostal", "latitude", "longitude"],
+    colonnes: ["code", "nom", "codePostal", "latitude", "longitude", "pays", "subdivision"],
     communes: lignes,
   };
 
   const compresse = gzipSync(Buffer.from(JSON.stringify(document)), { level: 9 });
   writeFileSync(SORTIE, compresse);
 
-  console.log(`\n${lignes.length} communes (${arrondissements} arrondissements, ${viaPoste} rattrapées via La Poste).`);
+  console.log(`\n${lignes.length} localités : ${lignes.length - etrangeres.length} en France ` +
+    `(${arrondissements} arrondissements, ${viaPoste} rattrapées via La Poste), ${etrangeres.length} chez les voisins.`);
   if (perdues.length) console.log(`Sans position, donc écartées : ${perdues.join(", ")}`);
   console.log(`Écrit dans ${path.relative(process.cwd(), SORTIE)} — ${(compresse.length / 1024).toFixed(0)} ko compressés.`);
 }

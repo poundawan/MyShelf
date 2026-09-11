@@ -7,7 +7,7 @@ import { gunzipSync } from "node:zlib";
 import path from "node:path";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { departementDepuisInsee, normaliserNom } from "../src/lib/geo";
+import { normaliserNom } from "../src/lib/geo";
 
 /**
  * Charge le référentiel des communes en base, puis rattache les lignes qui
@@ -33,39 +33,82 @@ const FICHIER = path.join(__dirname, "data", "communes.json.gz");
 /** Postgres accepte de longues listes, mais pas un paquet de 35 000 lignes. */
 const TAILLE_LOT = 2000;
 
-type LigneCommune = [insee: string, nom: string, codePostal: string | null, lat: number, lng: number];
+type LigneCommune = [
+  code: string,
+  nom: string,
+  codePostal: string | null,
+  lat: number,
+  lng: number,
+  pays: string,
+  subdivision: string,
+];
 
 export function lireReferentiel(): LigneCommune[] {
   const brut = JSON.parse(gunzipSync(readFileSync(FICHIER)).toString()) as { communes: LigneCommune[] };
   return brut.communes;
 }
 
+/**
+ * Met la base en accord avec le fichier : ajoute ce qui manque, corrige ce qui
+ * diffère, ne touche à rien d'autre.
+ *
+ * Une comparaison plutôt qu'un simple compte : la version précédente se
+ * contentait d'insérer les codes absents, et une correction de nom — « Brussels »
+ * devenu « Bruxelles » — ne serait jamais parvenue jusqu'aux bases déjà
+ * peuplées. Lire trente-sept mille lignes courtes coûte quelques centaines de
+ * millisecondes au build, contre un référentiel silencieusement périmé.
+ *
+ * Les lignes présentes en base mais absentes du fichier sont laissées en
+ * place : des membres y sont peut-être rattachés, et une commune disparue
+ * d'une source ne disparaît pas du monde.
+ */
 export async function chargerCommunes(prisma: PrismaClient) {
-  const communes = lireReferentiel();
-  const dejaLa = await prisma.commune.count();
-
-  // Le référentiel ne bouge qu'au rythme des fusions de communes : s'il est
-  // déjà complet, on ne réécrit pas 35 000 lignes à chaque démarrage.
-  if (dejaLa === communes.length) {
-    console.log(`Communes : ${dejaLa} déjà en base, rien à charger.`);
-    return;
-  }
-
-  const lignes = communes.map(([code, nom, codePostal, latitude, longitude]) => ({
+  const lignes = lireReferentiel().map(([code, nom, codePostal, latitude, longitude, pays, subdivision]) => ({
     code,
+    pays,
     nom,
     nomRecherche: normaliserNom(nom),
     codePostal,
-    departement: departementDepuisInsee(code),
+    departement: subdivision,
     latitude,
     longitude,
   }));
 
-  for (let i = 0; i < lignes.length; i += TAILLE_LOT) {
-    await prisma.commune.createMany({ data: lignes.slice(i, i + TAILLE_LOT), skipDuplicates: true });
+  const existantes = new Map(
+    (await prisma.commune.findMany()).map((c) => [c.code, c] as const),
+  );
+
+  const aCreer = lignes.filter((l) => !existantes.has(l.code));
+  const aCorriger = lignes.filter((l) => {
+    const avant = existantes.get(l.code);
+    return (
+      avant !== undefined &&
+      (avant.nom !== l.nom ||
+        avant.nomRecherche !== l.nomRecherche ||
+        avant.codePostal !== l.codePostal ||
+        avant.departement !== l.departement ||
+        avant.pays !== l.pays ||
+        avant.latitude !== l.latitude ||
+        avant.longitude !== l.longitude)
+    );
+  });
+
+  if (aCreer.length === 0 && aCorriger.length === 0) {
+    console.log(`Communes : ${existantes.size} en base, à jour.`);
+    return;
   }
 
-  console.log(`Communes : ${await prisma.commune.count()} en base.`);
+  for (let i = 0; i < aCreer.length; i += TAILLE_LOT) {
+    await prisma.commune.createMany({ data: aCreer.slice(i, i + TAILLE_LOT), skipDuplicates: true });
+  }
+  for (const ligne of aCorriger) {
+    await prisma.commune.update({ where: { code: ligne.code }, data: ligne });
+  }
+
+  console.log(
+    `Communes : ${await prisma.commune.count()} en base ` +
+      `(${aCreer.length} ajoutée(s), ${aCorriger.length} corrigée(s)).`,
+  );
 }
 
 /**

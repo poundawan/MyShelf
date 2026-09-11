@@ -438,7 +438,11 @@ model Photo {
   @@index([uploadedById])
 }
 
-/// Commune française : le référentiel qui donne un sens aux distances.
+/// Commune : le référentiel qui donne un sens aux distances.
+///
+/// France, plus les pays francophones voisins (Belgique, Suisse, Luxembourg,
+/// Monaco). Le nom du modèle reste « Commune » par habitude française ; il
+/// désigne en réalité une localité, quel que soit le pays.
 ///
 /// Il est embarqué dans le dépôt (`prisma/data/communes.json.gz`, construit par
 /// `scripts/construire-communes.ts`) plutôt qu'interrogé chez un tiers. Trois
@@ -450,14 +454,20 @@ model Photo {
 /// la personne : afficher des distances entre membres à partir de coordonnées
 /// exactes permettrait de retrouver leur domicile par recoupement.
 model Commune {
-  /// Code INSEE : identifiant officiel et stable, numérique sauf en Corse (2A, 2B).
+  /// Identifiant stable. Pour la France, le code INSEE nu (« 69266 », « 2A004 »).
+  /// Ailleurs, il est préfixé du pays (« be-8693 ») : les deux espaces de
+  /// nommage ne peuvent ainsi pas se télescoper, et les codes français
+  /// existants n'ont pas eu à changer.
   code         String  @id
+  /// Code ISO du pays, sur deux lettres.
+  pays         String  @default("FR")
   nom          String
   /// Le nom sans accent ni trait d'union, en minuscules. C'est sur cette forme
   /// que porte la recherche, pour que « saint etienne » trouve « Saint-Étienne ».
   nomRecherche String
   codePostal   String?
-  /// Déduit du code INSEE. Distingue les nombreux homonymes à l'affichage.
+  /// Subdivision administrative : département en France, canton en Suisse,
+  /// province en Belgique. Distingue les nombreux homonymes à l'affichage.
   departement  String
   latitude     Float
   longitude    Float
@@ -467,6 +477,7 @@ model Commune {
   clubs  Club[]
 
   @@index([nomRecherche])
+  @@index([pays])
   /// Sert au préfiltre par boîte englobante des recherches par rayon.
   @@index([latitude, longitude])
 }

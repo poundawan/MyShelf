@@ -240,6 +240,78 @@ test.describe("Autocomplétion par la Base Adresse Nationale", () => {
   });
 });
 
+test.describe("Pays francophones voisins", () => {
+  test("les villes de Belgique, Suisse, Luxembourg et Monaco sont là", async () => {
+    for (const [nom, pays] of [["Bruxelles", "BE"], ["Genève", "CH"], ["Luxembourg", "LU"], ["Monaco", "MC"]]) {
+      const trouvee = await rows<{ pays: string }>(
+        'SELECT pays FROM "Commune" WHERE nom = $1 AND pays = $2', [nom, pays],
+      );
+      expect(trouvee, `${nom} (${pays}) doit être au référentiel`).not.toHaveLength(0);
+    }
+
+    // Les noms anglicisés de la source ont été corrigés : personne ne cherche
+    // « Brussels » ni « Geneva » dans une application francophone.
+    expect(await rows('SELECT code FROM "Commune" WHERE nom IN (\'Brussels\', \'Geneva\')')).toHaveLength(0);
+
+    // Et les quartiers suisses de la source, qui ne sont pas des communes,
+    // n'encombrent pas la liste.
+    expect(await rows(`SELECT code FROM "Commune" WHERE nom LIKE '% / %'`)).toHaveLength(0);
+  });
+
+  test("choisir une ville étrangère enregistre sa position", async ({ page }) => {
+    await login(page, "lea");
+    await page.goto("/profile/edit");
+
+    await choisirCommune(page, "Genève", /Genève/);
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await page.waitForURL(/\/profile\/(?!edit$)[a-z0-9]+$/);
+
+    const apres = await one<{ city: string; communeCode: string }>(
+      'SELECT city, "communeCode" FROM "User" WHERE email = $1', ["lea@example.com"],
+    );
+    expect(apres.city).toBe("Genève");
+    const choisie = await one<{ pays: string }>('SELECT pays FROM "Commune" WHERE code = $1', [apres.communeCode]);
+    expect(choisie.pays).toBe("CH");
+
+    // On remet le compte du jeu de démonstration dans son état d'origine.
+    await page.goto("/profile/edit");
+    await choisirCommune(page, "Lyon 7e", /Lyon 7e/);
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await page.waitForURL(/\/profile\/(?!edit$)[a-z0-9]+$/);
+  });
+
+  test("le pays s'affiche, pour ne pas confondre avec une commune française", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    await page.fill("#city", "Genève");
+    const option = optionsCommune(page).first();
+    await option.waitFor();
+    await expect(option).toContainText("CH");
+  });
+
+  test("une ville étrangère hors du service français n'est pas une panne", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/profile/edit");
+
+    // Le géocodeur français ne connaît pas Bruxelles : il répond à vide, et
+    // c'est le référentiel qui sert. Annoncer une panne serait faux.
+    await page.fill("#city", "Bruxelles");
+    await expect(optionsCommune(page).first()).toBeVisible();
+    await expect(page.getByText(/liste embarquée/)).toHaveCount(0);
+  });
+
+  test("la distance jusqu'à une ville étrangère est réelle", async () => {
+    const lyon = await one<Commune>(`SELECT code, nom, latitude, longitude FROM "Commune" WHERE code = '69123'`);
+    const geneve = await one<Commune>(`SELECT code, nom, latitude, longitude FROM "Commune" WHERE nom = 'Genève' AND pays = 'CH'`);
+
+    // Lyon–Genève fait environ 113 km à vol d'oiseau.
+    const km = distanceKm(lyon, geneve);
+    expect(km).toBeGreaterThan(105);
+    expect(km).toBeLessThan(125);
+  });
+});
+
 test.describe("Distances affichées", () => {
   test("la distance entre deux membres est celle de leurs communes", async ({ page }) => {
     // Chloé est à Lyon 7e, Marius à Lyon 3e : la valeur attendue se calcule,
