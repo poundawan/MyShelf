@@ -39,6 +39,7 @@ export function CommuneInput({
   // service d'adresses n'a pas répondu. À dire : sinon une panne durable
   // passerait pour un classement médiocre.
   const [horsLigne, setHorsLigne] = useState(false);
+  const [referentielVide, setReferentielVide] = useState(false);
   const [ouvert, setOuvert] = useState(false);
   const [surligne, setSurligne] = useState(-1);
   const conteneur = useRef<HTMLDivElement>(null);
@@ -52,6 +53,7 @@ export function CommuneInput({
       if (terme.length < 2) {
         setResultats([]);
         setHorsLigne(false);
+        setReferentielVide(false);
         return;
       }
       try {
@@ -59,6 +61,7 @@ export function CommuneInput({
         if (abandonne) return;
         setResultats(reponse.communes);
         setHorsLigne(reponse.source === "secours");
+        setReferentielVide(reponse.source === "referentielVide");
       } catch {
         // Le champ reste utilisable en saisie libre : ne rien afficher vaut
         // mieux qu'un message d'erreur sur une aide à la saisie.
@@ -170,6 +173,8 @@ export function CommuneInput({
           ))}
         </ul>
       )}
+
+      {referentielVide && <p className="mt-1.5 text-xs text-rust">{t("commune.missingData")}</p>}
 
       {horsLigne && resultats.length > 0 && (
         <p className="mt-1.5 text-xs text-ink-soft">{t("commune.offline")}</p>

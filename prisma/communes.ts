@@ -17,7 +17,15 @@ import { departementDepuisInsee, normaliserNom } from "../src/lib/geo";
  * régénéré à la main par `scripts/construire-communes.ts`, une fois par an
  * tout au plus.
  *
- *     npx tsx prisma/communes.ts
+ *     npx tsx prisma/communes.ts                     # charge et rattache
+ *     npx tsx prisma/communes.ts --charger-seulement # charge, sans rattacher
+ *
+ * La seconde forme est appelée par `npm run build`. Sans elle, une base
+ * fraîchement déployée n'a aucune commune, et le sélecteur de ville devient
+ * silencieusement inutilisable : toutes les suggestions sont écartées au
+ * recoupement, faute de pouvoir les situer. Compter sur une commande à lancer
+ * à la main, c'est compter sur un oubli — et c'est exactement ce qui est
+ * arrivé en production.
  */
 
 const FICHIER = path.join(__dirname, "data", "communes.json.gz");
@@ -116,7 +124,10 @@ async function principal() {
   const prisma = new PrismaClient({ adapter });
   try {
     await chargerCommunes(prisma);
-    await rattacherCommunes(prisma);
+    // Le rattachement des villes saisies en texte libre est une reprise de
+    // données, pas une étape de déploiement : inutile de la rejouer à chaque
+    // build.
+    if (!process.argv.includes("--charger-seulement")) await rattacherCommunes(prisma);
   } finally {
     await prisma.$disconnect();
   }

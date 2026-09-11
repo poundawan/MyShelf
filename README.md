@@ -330,6 +330,10 @@ Trois garde-fous :
 Un code postal complet ne passe pas par l'API : il ne laisse aucune ambiguïté,
 et le référentiel local répond mieux, et toujours.
 
+Quatre issues, quatre messages : classement de l'API, repli sur la liste
+embarquée, service muet, et **référentiel absent du serveur** — ce dernier cas
+ne ressemble à rien d'autre et ne se devine pas, d'où son état à part.
+
 Les résultats sont **dédoublonnés par code INSEE**. Ce n'est pas décoratif : si
 le filtre `type=municipality` cessait d'être honoré, l'API renverrait des
 adresses, et dix rues de Lyon deviendraient dix fois « Lyon » dans la liste.
@@ -350,9 +354,17 @@ main quand le découpage administratif bouge (une fois par an tout au plus,
 c'est le seul moment où une connexion sortante est nécessaire) :
 
 ```bash
-npx tsx scripts/construire-communes.ts
-npm run db:communes   # charge le référentiel et rattache les villes existantes
+npx tsx scripts/construire-communes.ts   # régénère le fichier (accès réseau)
+npm run db:communes                      # charge en base et rattache les villes
 ```
+
+**Le chargement en base fait partie du build** (`npm run build` appelle
+`prisma/communes.ts --charger-seulement`, qui ne réécrit rien si le référentiel
+est déjà complet). Sans cela, une base fraîchement déployée n'a aucune commune
+et le sélecteur de ville devient silencieusement inutilisable : toutes les
+suggestions sont écartées au recoupement, faute de pouvoir les situer. C'est
+exactement ce qui s'est produit en production — une commande à lancer à la
+main est une commande qu'on oublie.
 
 Deux sources sont croisées sur le code INSEE, parce qu'aucune ne suffit :
 le découpage IGN donne les noms correctement accentués et tiretés

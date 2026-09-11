@@ -39,11 +39,13 @@ export type ResultatCommunes = {
    * `api`     : le service d'adresses a répondu et son classement est retenu.
    * `local`   : le référentiel embarqué, par choix (un code postal) ou parce
    *             que le service n'a rien trouvé — ce qui n'est pas une panne.
-   * `secours` : le service n'a pas répondu. Seul ce cas se signale à l'écran ;
-   *             confondre les deux ferait passer une panne durable pour un
-   *             classement médiocre, ou l'inverse.
+   * `secours` : le service n'a pas répondu. Confondre les deux ferait passer
+   *             une panne durable pour un classement médiocre, ou l'inverse.
+   * `referentielVide` : la table des communes n'a pas été chargée sur ce
+   *             serveur. Aucune ville ne peut alors être choisie, et rien ne
+   *             le laisserait deviner — d'où un état à part.
    */
-  source: "api" | "local" | "secours";
+  source: "api" | "local" | "secours" | "referentielVide";
 };
 
 const MAX_RESULTATS = 8;
@@ -70,17 +72,28 @@ export async function rechercherCommunesAction(terme: string): Promise<ResultatC
   }
 
   const suggestions = await suggererCommunes(terme, MAX_RESULTATS);
+  // Un service qui répond « rien » n'est pas un service en panne.
+  const repli: ResultatCommunes["source"] = suggestions.statut === "ok" ? "local" : "secours";
 
   if (suggestions.statut === "ok") {
     const communes = await recouper(suggestions.communes.map((c) => c.code));
     if (communes.length > 0) return { communes, source: "api" };
-
-    // Le service a répondu « rien » : le plus souvent une saisie encore
-    // incomplète. On complète avec le référentiel, sans crier à la panne.
-    return { communes: await chercherEnLocal(recherche), source: "local" };
   }
 
-  return { communes: await chercherEnLocal(recherche), source: "secours" };
+  const locales = await chercherEnLocal(recherche);
+  if (locales.length > 0) return { communes: locales, source: repli };
+
+  // Rien nulle part : avant de laisser croire que la commune n'existe pas, on
+  // vérifie qu'on a bien une liste de communes à consulter.
+  if ((await prisma.commune.count()) === 0) {
+    console.error(
+      "Le référentiel des communes est vide sur ce serveur : aucune ville ne peut être choisie, " +
+        "et donc aucune distance calculée. Lancer `npm run db:communes`.",
+    );
+    return { communes: [], source: "referentielVide" };
+  }
+
+  return { communes: [], source: repli };
 }
 
 /**
@@ -104,10 +117,13 @@ async function recouper(codesBruts: string[]): Promise<CommuneTrouvee[]> {
 
   const inconnus = codes.filter((code) => !parCode.has(code));
   if (inconnus.length > 0) {
-    console.warn(
-      `Communes suggérées par l'API mais absentes du référentiel : ${inconnus.join(", ")}. ` +
-        "Le découpage administratif a sans doute bougé — relancer scripts/construire-communes.ts.",
-    );
+    // Deux causes très différentes, et mon premier message accusait la
+    // mauvaise : une table vide n'est pas un découpage administratif qui bouge.
+    const motif =
+      connues.length === 0
+        ? "Le référentiel est vraisemblablement vide sur ce serveur — lancer `npm run db:communes`."
+        : "Le découpage administratif a sans doute bougé — relancer scripts/construire-communes.ts.";
+    console.warn(`Communes suggérées par l'API mais absentes du référentiel : ${inconnus.join(", ")}. ${motif}`);
   }
 
   return codes.map((code) => parCode.get(code)).filter((c): c is CommuneTrouvee => c !== undefined);
