@@ -80,6 +80,10 @@ export async function getCurrentUser() {
     select: {
       id: true, email: true, name: true, city: true, avatarUrl: true, createdAt: true,
       bio: true, verified: true, experienceLevel: true, locale: true,
+      communeCode: true,
+      // La position de la personne connectée sert sur presque tous les écrans :
+      // autant la charger une fois avec sa session.
+      commune: { select: { latitude: true, longitude: true } },
     },
   });
 }

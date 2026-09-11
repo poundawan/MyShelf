@@ -8,6 +8,7 @@ import { getT } from "@/lib/i18n/server";
 import { eventSchema, eventUpdateSchema } from "@/lib/validation";
 import { notify } from "@/lib/notifications";
 import { appliquerPhoto } from "@/lib/photos";
+import { resoudreCommune } from "@/lib/communes";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function createEventAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -30,7 +31,8 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
   });
   if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
 
-  const { title, type, level, languages, description, bringList, city, location, startAt, endAt, maxParticipants } = parsed.data;
+  const { title, type, level, languages, description, bringList, location, startAt, endAt, maxParticipants } = parsed.data;
+  const { communeCode, city } = await resoudreCommune(formData);
 
   const photo = await appliquerPhoto(formData, "photo", user.id, null);
   if (!photo.ok) return { error: t(photo.erreur, photo.params) };
@@ -39,7 +41,7 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
     data: {
       hostId: user.id, title, type, level, languages,
       description: description || null, bringList: bringList || null,
-      city, location: location || null, startAt, endAt: endAt ?? null,
+      city, communeCode, location: location || null, startAt, endAt: endAt ?? null,
       maxParticipants: maxParticipants ?? null,
       photoUrl: photo.url ?? null,
       participants: { create: [{ userId: user.id }] },
@@ -75,7 +77,8 @@ export async function updateEventAction(eventId: string, _prevState: ActionState
   });
   if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
 
-  const { title, type, level, languages, description, bringList, city, location, startAt, endAt, maxParticipants } = parsed.data;
+  const { title, type, level, languages, description, bringList, location, startAt, endAt, maxParticipants } = parsed.data;
+  const { communeCode, city } = await resoudreCommune(formData);
 
   // On ne peut pas réduire le nombre de places en dessous du nombre d'inscrits :
   // il faudrait désinscrire quelqu'un sans le lui dire.
@@ -94,7 +97,7 @@ export async function updateEventAction(eventId: string, _prevState: ActionState
     data: {
       title, type, level, languages,
       description: description || null, bringList: bringList || null,
-      city, location: location || null, startAt, endAt: endAt ?? null,
+      city, communeCode, location: location || null, startAt, endAt: endAt ?? null,
       maxParticipants: maxParticipants ?? null,
       // `undefined` : la photo n'a pas été touchée, on ne l'écrase pas.
       ...(photo.url === undefined ? {} : { photoUrl: photo.url }),

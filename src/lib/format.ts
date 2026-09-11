@@ -50,15 +50,20 @@ export function timeAgo(date: Date, locale: Locale, t: Translator) {
   return formatDateShort(date, locale);
 }
 
-export function formatDistanceKm(km: number, t: Translator) {
+/**
+ * Distance lisible, ou une mention explicite quand elle est inconnue.
+ *
+ * `null` arrive dès que l'un des deux bouts n'a pas indiqué sa commune. Le
+ * dire vaut mieux que de masquer l'information : c'est l'invitation à
+ * renseigner sa ville.
+ *
+ * La langue compte jusque dans le séparateur décimal : « 3,3 km » en français,
+ * « 3.3 km » en anglais. `toFixed` ne connaît que le point.
+ */
+export function formatDistanceKm(km: number | null, locale: Locale, t: Translator) {
+  if (km === null) return t("common.distanceUnknown");
   if (km < 1) return t("common.metres", { value: Math.round(km * 1000) });
-  return t("common.km", { value: km.toFixed(1).replace(".0", "") });
+  const valeur = new Intl.NumberFormat(BCP47[locale], { maximumFractionDigits: 1 }).format(km);
+  return t("common.km", { value: valeur });
 }
 
-// Distance factice mais stable (dérivée d'un id) : pas de vraie géolocalisation
-// dans cette version — juste de quoi donner un ordre de grandeur crédible.
-export function pseudoDistanceKm(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return Math.round(((h % 780) / 100 + 0.2) * 10) / 10;
-}

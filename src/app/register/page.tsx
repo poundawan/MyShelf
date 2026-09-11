@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { registerAction } from "@/lib/actions/auth";
 import { Button, Input, Label, Card, ErrorText } from "@/components/ui";
+import { CommuneInput } from "@/components/commune-input";
 import { useT } from "@/lib/i18n/client";
 
 export default function RegisterPage() {
@@ -22,10 +23,7 @@ export default function RegisterPage() {
             <Label htmlFor="name">{t("auth.field.name")}</Label>
             <Input id="name" name="name" autoComplete="name" required />
           </div>
-          <div>
-            <Label htmlFor="city">{t("auth.field.city")}</Label>
-            <Input id="city" name="city" placeholder={t("auth.field.city.placeholder")} autoComplete="address-level2" required />
-          </div>
+          <CommuneInput label={t("auth.field.city")} required />
           <div>
             <Label htmlFor="email">{t("auth.field.email")}</Label>
             <Input id="email" name="email" type="email" autoComplete="email" required />

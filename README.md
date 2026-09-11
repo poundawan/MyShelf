@@ -110,6 +110,7 @@ La suite couvre les 20 écrans de l'application, sur trois niveaux :
 | `tests/langue.spec.ts` | Bascule français/anglais, y compris les messages de validation et les notifications ; langues de jeu d'une table. |
 | `tests/photos.spec.ts` | Envoi d'un avatar, d'une salle et d'une jaquette, refus d'un fichier qui n'est pas une image, suppression de l'ancienne photo, en-têtes de la route de service. |
 | `tests/bgg.spec.ts` | Recherche BoardGameGeek de bout en bout contre un faux serveur local : réponse normale, aucun résultat, HTTP 500, HTTP 202, serveur muet, filtre par type infructueux, puis le sélecteur à l'écran. |
+| `tests/geo.spec.ts` | Distances comparées à des valeurs connues (Lyon–Paris, Lyon–Marseille), boîte englobante qui n'écarte jamais un voisin réel, référentiel chargé, autocomplétion par nom et par code postal, rayon réellement appliqué, absence de distance inventée. |
 
 Chaque test vérifie à la fois l'écran et l'état réel en base : un affichage peut mentir, pas la
 base de données.
@@ -232,6 +233,76 @@ formulaire fonctionne entièrement à la main si BGG ne répond pas.
   la même fiche du catalogue, quelle que soit l'orthographe du titre.
 - Données et visuels : BoardGameGeek, usage non commercial.
 
+## Géolocalisation
+
+Les distances affichées sont **réelles**. Elles l'ont longtemps été en apparence
+seulement : « à 2,8 km » était un nombre dérivé de l'identifiant de l'objet.
+
+### Une position à la commune, jamais au domicile
+
+Chaque membre, table et club est rattaché à une **commune** (`communeCode`,
+code INSEE), et la position retenue est le **centre de cette commune**. Jamais
+la position exacte de la personne : afficher des distances au mètre près entre
+membres permettrait de retrouver une adresse par recoupement de trois mesures.
+Deux joueurs de la même ville sont donc à 0 km l'un de l'autre, ce qui est la
+vérité utile.
+
+Quand la commune n'est pas connue, l'application affiche **« distance
+inconnue »** et invite à la renseigner. Elle n'estime rien.
+
+### Un référentiel embarqué, aucun service tiers
+
+`prisma/data/communes.json.gz` (609 ko) contient les **35 273 communes
+françaises** — métropole, outre-mer, Corse, plus les arrondissements de Paris,
+Lyon et Marseille. Pas de clé d'API, pas de quota, pas de géocodeur à qui
+confier l'adresse de nos membres, et un comportement identique en
+développement, dans les tests et en production.
+
+Le fichier est construit par `scripts/construire-communes.ts`, à relancer à la
+main quand le découpage administratif bouge (une fois par an tout au plus,
+c'est le seul moment où une connexion sortante est nécessaire) :
+
+```bash
+npx tsx scripts/construire-communes.ts
+npm run db:communes   # charge le référentiel et rattache les villes existantes
+```
+
+Deux sources sont croisées sur le code INSEE, parce qu'aucune ne suffit :
+le découpage IGN donne les noms correctement accentués et tiretés
+(« Saint-Étienne-de-Tinée ») et les contours dont on tire les centres ; le
+référentiel La Poste donne les codes postaux et rattrape les 37 communes
+minuscules que la simplification des contours avait fait disparaître. Les noms
+de La Poste, eux, sont en capitales sans accents — inutilisables tels quels.
+
+`npx prisma db seed` charge le référentiel au passage : inutile de le faire à
+part.
+
+### Ce qui en découle
+
+- **Choix de la commune** par autocomplétion (nom ou code postal) à
+  l'inscription, dans le profil et à la création d'une table. « st etienne »
+  trouve Saint-Étienne : la recherche porte sur une forme normalisée, sans
+  accent ni trait d'union, et développe les abréviations d'usage.
+- **Recherche par rayon** réellement appliquée. La base préfiltre sur une boîte
+  englobante — l'index sait comparer des bornes, pas calculer une haversine —
+  puis `distanceKm` tranche. Le rectangle déborde volontairement du disque :
+  trop petit, il écarterait des voisins réels sans que rien ne le signale.
+- Les rayons proposés vont maintenant **jusqu'à 100 km** (contre 15 auparavant,
+  calibrés sur des distances inventées) : hors des grandes villes, le joueur le
+  plus proche est rarement à 8 km.
+- L'encart « autour de toi » de l'accueil listait trois pastilles posées à des
+  coordonnées écrites à la main. Ce sont désormais les tables réellement les
+  plus proches, à leur distance réelle.
+
+### Ce qui n'est pas fait
+
+- **Pas de carte interactive.** Elle demande un fournisseur de tuiles, donc un
+  tiers ; c'est un chantier à part.
+- **Pas de « utiliser ma position ».** L'application ne stocke que des
+  positions de communes : récupérer des coordonnées exactes pour les arrondir
+  aussitôt n'apporterait qu'une permission de plus à demander.
+- **France uniquement.** Le référentiel s'arrête aux frontières.
+
 ## Modèle de données
 
 Voir `prisma/schema.prisma` :
@@ -245,14 +316,14 @@ Voir `prisma/schema.prisma` :
 - `Conversation` + `Message`
 - `Review` (avis, contexte libre + note)
 - `Photo` (octets, type MIME, dimensions, auteur de l'envoi)
+- `Commune` (code INSEE, nom, code postal, département, latitude, longitude)
 
-Les distances affichées ("1,2 km", "900 m"...) sont **factices mais stables** (dérivées de l'id
-de l'objet) — il n'y a pas de vraie géolocalisation dans cette version, ni de génération
-d'occurrences pour les tables récurrentes (champ informatif seulement).
+Il n'y a pas de génération d'occurrences pour les tables récurrentes (le champ est informatif
+seulement).
 
 ## Pistes d'évolution
 
-- Vraie géolocalisation (adresse ou position) à la place des distances factices.
+- Carte interactive, une fois choisi un fournisseur de tuiles.
 - Notifications par e-mail ou push (celles dans l'application existent).
 - Occurrences générées pour les tables récurrentes (le champ est informatif).
 - Corriger une fiche du catalogue partagé (titre, durée, nombre de joueurs).

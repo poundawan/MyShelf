@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { ActionState } from "@/lib/actions/auth";
 import { Button, Input, Label, Textarea, Card, Badge, ErrorText } from "@/components/ui";
 import { PhotoInput } from "@/components/photo-input";
+import { CommuneInput } from "@/components/commune-input";
 import { eventTypeEmoji } from "@/lib/labels";
 import { eventTypes, playerLevels } from "@/lib/validation";
 import { useT } from "@/lib/i18n/client";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 export type EventFormValues = {
   photoUrl: string | null;
+  communeCode: string | null;
   title: string;
   type: string;
   level: string;
@@ -26,7 +28,7 @@ export type EventFormValues = {
 };
 
 const EMPTY: EventFormValues = {
-  photoUrl: null, title: "", type: "BOARD_GAME", level: "BEGINNER", languages: ["FR"], description: "", bringList: "",
+  photoUrl: null, communeCode: null, title: "", type: "BOARD_GAME", level: "BEGINNER", languages: ["FR"], description: "", bringList: "",
   city: "", location: "", startAt: "", endAt: "", maxParticipants: "",
 };
 
@@ -157,10 +159,13 @@ export function EventForm({
           <PhotoInput name="photo" label={t("event.field.photo")} currentUrl={values.photoUrl} ratio="aspect-[16/5]" />
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="city">{t("event.field.city")}</Label>
-              <Input id="city" name="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("event.field.city.placeholder")} required />
-            </div>
+            <CommuneInput
+              label={t("event.field.city")}
+              defaultValue={values.city}
+              defaultCode={values.communeCode}
+              onChange={setCity}
+              required
+            />
             <div>
               <Label htmlFor="location">{t("event.field.location")}</Label>
               <Input id="location" name="location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("event.field.location.placeholder")} />

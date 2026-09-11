@@ -37,6 +37,7 @@ export default async function EditEventPage({ params }: PageProps<"/events/[id]/
           pendingLabel={t("common.saving")}
           values={{
             photoUrl: event.photoUrl,
+            communeCode: event.communeCode,
             title: event.title,
             type: event.type,
             level: event.level,

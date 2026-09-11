@@ -1,6 +1,7 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
+import { chargerCommunes, rattacherCommunes } from "./communes";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -13,6 +14,11 @@ function daysFromNow(days: number, hour: number, minute = 0) {
 }
 
 async function main() {
+  // Le référentiel des communes se charge dans tous les cas, même si le reste
+  // est déjà en place : sans lui, personne ne peut choisir sa ville et toutes
+  // les distances disparaissent.
+  await chargerCommunes(prisma);
+
   // Ce script n'est pas conçu pour fusionner avec des données existantes : les
   // jeux, copies, tables et échanges n'ont pas de clé naturelle et seraient
   // recréés en double à chaque exécution. On refuse donc de peupler une base
@@ -24,6 +30,9 @@ async function main() {
       `Base déjà peuplée (${dejaPeuplee} jeux) : rien à faire.\n` +
         "Pour forcer malgré tout (au risque de créer des doublons) : SEED_FORCE=1",
     );
+    // Les lignes créées avant l'arrivée du référentiel n'ont encore qu'une
+    // ville en texte libre : on les relie au passage.
+    await rattacherCommunes(prisma);
     return;
   }
 
@@ -181,6 +190,14 @@ async function main() {
     { fromUserId: lea.id, toUserId: chloe.id, context: "Cartes · Cendres du Nord", rating: 5, comment: "Cartes protégées, état conforme à l'annonce. Échange en cinq minutes devant la boutique." },
     { fromUserId: bastien.id, toUserId: chloe.id, context: "Aprem jeux · débutant", rating: 4, comment: "Première fois que je jouais à autre chose qu'un jeu de cartes classique, personne ne m'a fait sentir largué." },
   ]});
+
+
+  // Les comptes, tables et clubs du jeu de démonstration désignent leur ville
+
+  // en texte ; on leur donne la commune correspondante.
+
+  await rattacherCommunes(prisma);
+
 
   console.log("Seed terminé :", { chloe: chloe.email, weekendDnd: weekendDnd.id, apremJeux: apremJeux.id });
 }

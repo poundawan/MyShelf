@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { getT, LOCALE_COOKIE } from "@/lib/i18n/server";
 import { createSession, clearSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { loginSchema, registerSchema } from "@/lib/validation";
+import { resoudreCommune } from "@/lib/communes";
 import { verifierLimiteConnexion, enregistrerTentative, purgerTentativesAnciennes } from "@/lib/rate-limit";
 
 export type ActionState = { error?: string } | undefined;
@@ -23,16 +24,18 @@ export async function registerAction(_prevState: ActionState, formData: FormData
     return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
   }
 
-  const { name, email, city, password } = parsed.data;
+  const { name, email, password } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return { error: t("action.accountExists") };
   }
 
+  const { communeCode, city } = await resoudreCommune(formData);
+
   const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({
-    data: { name, email, city, passwordHash },
+    data: { name, email, city, communeCode, passwordHash },
   });
 
   await createSession(user.id);

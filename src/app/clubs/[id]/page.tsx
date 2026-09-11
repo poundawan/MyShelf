@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { joinClubAction, leaveClubAction } from "@/lib/actions/clubs";
 import { Avatar, Badge, Button, Card } from "@/components/ui";
 import { EventCard } from "@/components/event-card";
-import { pseudoDistanceKm, formatDistanceKm } from "@/lib/format";
+import { formatDistanceKm } from "@/lib/format";
+import { POSITION_COMMUNE, distanceDepuis } from "@/lib/proximite";
 import { getT, getLocale } from "@/lib/i18n/server";
 
 export default async function ClubDetailPage({ params }: PageProps<"/clubs/[id]">) {
@@ -17,6 +18,7 @@ export default async function ClubDetailPage({ params }: PageProps<"/clubs/[id]"
   const club = await prisma.club.findUnique({
     where: { id },
     include: {
+      commune: POSITION_COMMUNE,
       memberships: { include: { user: true }, orderBy: { joinedAt: "asc" } },
       events: {
         where: { status: "ACTIVE", startAt: { gte: new Date() } },
@@ -40,7 +42,7 @@ export default async function ClubDetailPage({ params }: PageProps<"/clubs/[id]"
           <h1 className="font-display text-3xl text-cream">{club.name}</h1>
           <p className="mt-1 text-sm text-ink-soft">
             {club.city} · {t("common.members", { count: club.memberships.length })} ·{" "}
-            {formatDistanceKm(pseudoDistanceKm(club.id), t)}
+            {formatDistanceKm(distanceDepuis(user?.commune ?? null, club), locale, t)}
           </p>
           {club.description && <p className="mt-3 max-w-prose text-sm text-ink-soft">{club.description}</p>}
         </div>

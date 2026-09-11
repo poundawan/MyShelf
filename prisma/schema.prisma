@@ -86,7 +86,11 @@ model User {
   email           String      @unique
   passwordHash    String
   name            String
+  /// Libellé affiché. Toujours recopié du nom de la commune quand il y en a
+  /// une : `communeCode` fait foi pour tout ce qui touche à la distance.
   city            String
+  communeCode     String?
+  commune         Commune?    @relation(fields: [communeCode], references: [code], onDelete: SetNull)
   avatarUrl       String?
   bio             String?
   verified        Boolean     @default(false)
@@ -112,6 +116,8 @@ model User {
   notifications       Notification[]
   loginAttempts       LoginAttempt[]
   photos              Photo[]
+
+  @@index([communeCode])
 }
 
 model Game {
@@ -208,11 +214,15 @@ model Club {
   id          String   @id @default(cuid())
   name        String
   city        String
+  communeCode String?
+  commune     Commune? @relation(fields: [communeCode], references: [code], onDelete: SetNull)
   description String?
   createdAt   DateTime @default(now())
 
   memberships ClubMembership[]
   events      Event[]
+
+  @@index([communeCode])
 }
 
 model ClubMembership {
@@ -241,6 +251,8 @@ model Event {
   description     String?
   bringList       String?
   city            String
+  communeCode     String?
+  commune         Commune?    @relation(fields: [communeCode], references: [code], onDelete: SetNull)
   location        String?
   photoUrl        String?
   startAt         DateTime
@@ -254,6 +266,7 @@ model Event {
   reviews      Review[]
 
   @@index([city])
+  @@index([communeCode])
   @@index([startAt])
   @@index([hostId])
 }
@@ -423,4 +436,37 @@ model Photo {
   createdAt DateTime @default(now())
 
   @@index([uploadedById])
+}
+
+/// Commune française : le référentiel qui donne un sens aux distances.
+///
+/// Il est embarqué dans le dépôt (`prisma/data/communes.json.gz`, construit par
+/// `scripts/construire-communes.ts`) plutôt qu'interrogé chez un tiers. Trois
+/// raisons : aucune clé d'API ni quota à gérer, aucun service extérieur à qui
+/// confier l'adresse de nos membres, et un comportement identique en
+/// développement, dans les tests et en production.
+///
+/// La position stockée est celle du **centre de la commune**, jamais celle de
+/// la personne : afficher des distances entre membres à partir de coordonnées
+/// exactes permettrait de retrouver leur domicile par recoupement.
+model Commune {
+  /// Code INSEE : identifiant officiel et stable, numérique sauf en Corse (2A, 2B).
+  code         String  @id
+  nom          String
+  /// Le nom sans accent ni trait d'union, en minuscules. C'est sur cette forme
+  /// que porte la recherche, pour que « saint etienne » trouve « Saint-Étienne ».
+  nomRecherche String
+  codePostal   String?
+  /// Déduit du code INSEE. Distingue les nombreux homonymes à l'affichage.
+  departement  String
+  latitude     Float
+  longitude    Float
+
+  users  User[]
+  events Event[]
+  clubs  Club[]
+
+  @@index([nomRecherche])
+  /// Sert au préfiltre par boîte englobante des recherches par rayon.
+  @@index([latitude, longitude])
 }

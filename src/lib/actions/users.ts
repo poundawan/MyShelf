@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import { getT, LOCALE_COOKIE } from "@/lib/i18n/server";
 import { profileSchema } from "@/lib/validation";
 import { appliquerPhoto } from "@/lib/photos";
+import { resoudreCommune } from "@/lib/communes";
 import type { ActionState } from "@/lib/actions/auth";
 
 export async function updateProfileAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -24,7 +25,8 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
   });
   if (!parsed.success) return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
 
-  const { name, city, bio, experienceLevel, locale } = parsed.data;
+  const { name, bio, experienceLevel, locale } = parsed.data;
+  const { communeCode, city } = await resoudreCommune(formData);
 
   // L'avatar se règle avant l'écriture : une photo refusée doit renvoyer le
   // formulaire intact, sans avoir enregistré la moitié des champs au passage.
@@ -36,6 +38,7 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
     data: {
       name,
       city,
+      communeCode,
       bio: bio || null,
       experienceLevel,
       locale,

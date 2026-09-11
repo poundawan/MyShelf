@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Badge, Button, Card, Input } from "@/components/ui";
-import { getT } from "@/lib/i18n/server";
-import { pseudoDistanceKm, formatDistanceKm } from "@/lib/format";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { formatDistanceKm } from "@/lib/format";
+import { POSITION_COMMUNE, distanceDepuis } from "@/lib/proximite";
 import { requestCardAction } from "@/lib/actions/trades";
 import { deleteCardCopyAction, deleteCardWantAction } from "@/lib/actions/cards";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ const rarityBadge: Record<string, "primary" | "outline" | "muted" | "danger"> = 
 
 export default async function CardsPage({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string }> }) {
   const t = await getT();
+  const locale = await getLocale();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -27,7 +29,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
       ...(isMine ? { ownerId: user.id } : { ownerId: { not: user.id } }),
       ...(q ? { card: { OR: [{ name: { contains: q, mode: "insensitive" } }, { setName: { contains: q, mode: "insensitive" } }] } } : {}),
     },
-    include: { card: true, owner: true },
+    include: { card: true, owner: { include: { commune: POSITION_COMMUNE } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -70,7 +72,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {copies.map((copy) => {
-            const km = pseudoDistanceKm(copy.id);
+            const km = distanceDepuis(user?.commune ?? null, copy.owner);
             return (
               <Card key={copy.id} className="overflow-hidden">
                 <div className="relative flex aspect-[3/4] items-center justify-center bg-surface-2 text-xs uppercase tracking-widest text-ink-soft/65">
@@ -83,7 +85,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
                   <div className="font-display text-sm text-cream">{copy.card.name}</div>
                   <div className="mt-1 text-xs text-ink-soft">
                     {copy.card.setName ? `${copy.card.setName} · ` : ""}
-                    {copy.owner.name} · {formatDistanceKm(km, t)}
+                    {copy.owner.name} · {formatDistanceKm(km, locale, t)}
                   </div>
                   {isMine ? (
                     <form action={deleteCardCopyAction.bind(null, copy.id)} className="mt-2">

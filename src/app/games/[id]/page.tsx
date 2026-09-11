@@ -6,7 +6,8 @@ import { Badge, Button, Avatar, Card, Select } from "@/components/ui";
 import { gameCategoryEmoji } from "@/lib/labels";
 import { itemConditions } from "@/lib/validation";
 import { getT, getLocale } from "@/lib/i18n/server";
-import { pseudoDistanceKm, formatDistanceKm, formatFullDate } from "@/lib/format";
+import { formatDistanceKm, formatFullDate } from "@/lib/format";
+import { POSITION_COMMUNE, distanceDepuis } from "@/lib/proximite";
 import { toggleGameWantAction, updateGameCopyConditionAction, deleteGameCopyAction } from "@/lib/actions/games";
 
 export default async function GameDetailPage({ params }: PageProps<"/games/[id]">) {
@@ -18,7 +19,11 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
   const game = await prisma.game.findUnique({
     where: { id },
     include: {
-      copies: { where: { status: "ON_TABLE" }, include: { owner: true }, orderBy: { createdAt: "asc" } },
+      copies: {
+        where: { status: "ON_TABLE" },
+        include: { owner: { include: { commune: POSITION_COMMUNE } } },
+        orderBy: { createdAt: "asc" },
+      },
       reviews: { select: { rating: true } },
     },
   });
@@ -131,14 +136,14 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
           </h2>
           <div className="mt-4 flex flex-col gap-2">
             {otherOwners.map((copy) => {
-              const km = pseudoDistanceKm(copy.id);
+              const km = distanceDepuis(user?.commune ?? null, copy.owner);
               return (
                 <Card key={copy.id} className="flex items-center gap-3 p-3">
                   <Avatar name={copy.owner.name} size={38} tone={copy.owner.verified ? "rust" : "wood"} src={copy.owner.avatarUrl} />
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold text-cream">{copy.owner.name}</div>
                     <div className="text-xs text-ink-soft">
-                      {formatDistanceKm(km, t)} · {copy.owner.verified ? t("game.owner.verified") : t("game.owner.new")}
+                      {formatDistanceKm(km, locale, t)} · {copy.owner.verified ? t("game.owner.verified") : t("game.owner.new")}
                     </div>
                   </div>
                   {user && copy.ownerId !== user.id ? (

@@ -2,16 +2,19 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Avatar, Badge, Card } from "@/components/ui";
-import { pseudoDistanceKm, formatDistanceKm } from "@/lib/format";
-import { getT } from "@/lib/i18n/server";
+import { formatDistanceKm } from "@/lib/format";
+import { POSITION_COMMUNE, distanceDepuis } from "@/lib/proximite";
+import { getT, getLocale } from "@/lib/i18n/server";
 
 export default async function ClubsPage() {
   const t = await getT();
+  const locale = await getLocale();
   const user = await getCurrentUser();
 
   const clubs = await prisma.club.findMany({
     include: {
       _count: { select: { memberships: true } },
+      commune: POSITION_COMMUNE,
       memberships: { include: { user: true }, take: 4, orderBy: { joinedAt: "asc" } },
       events: {
         where: { status: "ACTIVE", startAt: { gte: new Date() } },
@@ -52,7 +55,7 @@ export default async function ClubsPage() {
                     </div>
                     <div className="mt-1 text-xs text-ink-soft">
                       {club.city} · {t("common.members", { count: club._count.memberships })} ·{" "}
-                      {formatDistanceKm(pseudoDistanceKm(club.id), t)}
+                      {formatDistanceKm(distanceDepuis(user?.commune ?? null, club), locale, t)}
                     </div>
                     {nextEvent && (
                       <div className="mt-1.5 text-xs text-gold">{t("clubs.nextTable", { title: nextEvent.title })}</div>

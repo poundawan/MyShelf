@@ -5,7 +5,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { Button, Card, StatTile } from "@/components/ui";
 import { gameCategoryEmoji, eventTypeEmoji } from "@/lib/labels";
-import { formatDateShort, timeAgo, formatEventDate, pseudoDistanceKm, formatDistanceKm, daysSince } from "@/lib/format";
+import { formatDateShort, timeAgo, formatEventDate, formatDistanceKm, daysSince } from "@/lib/format";
+import { POSITION_COMMUNE, distanceDepuis, parProximite } from "@/lib/proximite";
+
+/**
+ * Ce qu'on appelle « près de chez toi ».
+ *
+ * Vingt-cinq kilomètres, c'est l'agglomération et sa périphérie : la distance
+ * qu'on accepte de faire un jeudi soir pour une partie.
+ */
+const RAYON_PROCHE_KM = 25;
 
 type FeedItem = {
   kind: "trade" | "event" | "cards";
@@ -29,23 +38,31 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     await Promise.all([
       prisma.tradeProposal.count({ where: { toUserId: user.id, status: "PENDING" } }),
       prisma.tradeProposal.count({ where: { OR: [{ fromUserId: user.id }, { toUserId: user.id }], status: "COMPLETED" } }),
-      prisma.event.findMany({ where: { status: "ACTIVE", startAt: { gte: new Date() } }, include: { host: true, _count: { select: { participants: true } } }, orderBy: { startAt: "asc" }, take: 6 }),
+      prisma.event.findMany({ where: { status: "ACTIVE", startAt: { gte: new Date() } }, include: { host: true, commune: POSITION_COMMUNE, _count: { select: { participants: true } } }, orderBy: { startAt: "asc" }, take: 12 }),
       prisma.clubMembership.findFirst({
         where: { userId: user.id },
         include: { club: { include: { _count: { select: { memberships: true } }, events: { where: { status: "ACTIVE", startAt: { gte: new Date() } }, orderBy: { startAt: "asc" }, take: 1 } } } },
       }),
       prisma.tradeProposal.findMany({
         where: { toUserId: user.id, status: "PENDING", kind: "GAME" },
-        include: { fromUser: true, items: { include: { gameCopy: { include: { game: true } } } } },
+        include: { fromUser: { include: { commune: POSITION_COMMUNE } }, items: { include: { gameCopy: { include: { game: true } } } } },
         orderBy: { createdAt: "desc" }, take: 3,
       }),
       prisma.cardWant.findMany({
         where: { userId: user.id },
-        include: { card: { include: { copies: { where: { status: "ON_TABLE", ownerId: { not: user.id } }, include: { owner: true } } } } },
+        include: { card: { include: { copies: { where: { status: "ON_TABLE", ownerId: { not: user.id } }, include: { owner: { include: { commune: POSITION_COMMUNE } } } } } } },
       }),
     ]);
 
-  const nearbyEvents = allUpcomingEvents.filter((e) => pseudoDistanceKm(e.id) < 2);
+  // Une table sans commune n'est pas « proche » : on ne sait simplement pas où
+  // elle est. C'est ce que dit `distanceDepuis` en renvoyant null.
+  const origine = user.commune;
+  const distanceTable = (e: (typeof allUpcomingEvents)[number]) => distanceDepuis(origine, e);
+  const nearbyEvents = allUpcomingEvents.filter((e) => {
+    const km = distanceTable(e);
+    return km !== null && km <= RAYON_PROCHE_KM;
+  });
+  const tablesProches = parProximite(nearbyEvents, distanceTable).slice(0, 4);
 
   const feed: FeedItem[] = [];
   for (const req of incomingRequests) {
@@ -54,7 +71,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     feed.push({
       kind: "trade", tab: "Échanges", href: `/trades/${req.id}`,
       title: t("home.feed.tradeWants", { name: req.fromUser.name, game: targetItem.game.title }),
-      meta: `${formatDistanceKm(pseudoDistanceKm(req.id), t)} · ${timeAgo(req.createdAt, locale, t)}`,
+      meta: `${formatDistanceKm(distanceDepuis(origine, req.fromUser), locale, t)} · ${timeAgo(req.createdAt, locale, t)}`,
       body: t("home.feed.tradeAnswer"),
       emoji: gameCategoryEmoji[targetItem.game.category], createdAt: req.createdAt,
     });
@@ -76,7 +93,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     feed.push({
       kind: "cards", tab: "Échanges", href: "/cards",
       title: t("home.feed.cardsAvailable", { count: wantsWithMatches.length }),
-      meta: `${formatDistanceKm(pseudoDistanceKm(firstCopy.id), t)} · ${firstCopy.owner.name}`,
+      meta: `${formatDistanceKm(distanceDepuis(origine, firstCopy.owner), locale, t)} · ${firstCopy.owner.name}`,
       body: first.card.setName
         ? t("home.feed.cardsBody", { set: first.card.setName, name: first.card.name })
         : t("home.feed.cardsBodyNoSet", { name: first.card.name }),
@@ -168,20 +185,33 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               <h3 className="font-display text-base text-cream">{t("home.nearby")}</h3>
               <Link href="/search" className="-my-2 inline-block py-2 text-xs font-bold text-gold hover:underline">{t("home.nearby.map")}</Link>
             </div>
-            <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-sm bg-surface-2">
-              <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(#8A5A34 2px, transparent 2px), linear-gradient(90deg, #8A5A34 2px, transparent 2px)", backgroundSize: "40% 2px, 2px 40%", backgroundPosition: "20% 0, 0 30%" }} />
-              {[
-                { label: club?.name ?? t("clubs.yours"), top: "18%", left: "14%" },
-                { label: allUpcomingEvents[0]?.title.split(" ").slice(0, 2).join(" ") ?? "Une table", top: "24%", left: "62%" },
-                { label: incomingRequests[0] ? `${incomingRequests[0].fromUser.name.split(" ")[0]}` : t("home.map.somePlayer"), top: "62%", left: "68%" },
-              ].map((pin, i) => (
-                <div key={i} className="absolute flex items-center gap-1.5" style={{ top: pin.top, left: pin.left }}>
-                  <span className="text-gold">◆</span>
-                  <span className="whitespace-nowrap rounded-sm bg-surface px-1.5 py-0.5 text-[10px] font-bold text-cream">{pin.label}</span>
-                </div>
-              ))}
-              <span className="absolute bottom-1.5 right-2 text-[10px] text-ink-soft/60">{t("home.nearby.caption")}</span>
-            </div>
+            {/* Ici s'affichait un décor : une grille en CSS et trois pastilles
+                posées à des coordonnées écrites à la main, qui ne désignaient
+                rien. Ce sont désormais les tables réellement les plus proches,
+                à leur distance réelle. */}
+            {!origine ? (
+              <p className="mt-3 text-sm text-ink-soft">
+                {t("home.nearby.noCommune")}{" "}
+                <Link href="/profile/edit" className="font-bold text-gold underline">{t("home.nearby.setCommune")}</Link>
+              </p>
+            ) : tablesProches.length === 0 ? (
+              <p className="mt-3 text-sm text-ink-soft">{t("home.nearby.none", { km: RAYON_PROCHE_KM })}</p>
+            ) : (
+              <ul className="mt-3 flex flex-col">
+                {tablesProches.map((ev) => (
+                  <li key={ev.id} className="border-b border-border last:border-b-0">
+                    <Link href={`/events/${ev.id}`} className="flex items-baseline justify-between gap-3 py-2.5 hover:text-cream">
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-cream">{ev.title}</span>
+                        <span className="block text-xs text-ink-soft">{formatEventDate(ev.startAt, locale)} · {ev.city}</span>
+                      </span>
+                      <span className="flex-none text-xs font-bold text-gold">{formatDistanceKm(distanceTable(ev), locale, t)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-[11px] text-ink-soft">{t("home.nearby.caption", { km: RAYON_PROCHE_KM })}</p>
           </Card>
 
           {club ? (

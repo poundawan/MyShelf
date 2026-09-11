@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Card, Badge, Button } from "@/components/ui";
-import { pseudoDistanceKm, formatDistanceKm, formatEventDate } from "@/lib/format";
+import { formatDistanceKm, formatEventDate } from "@/lib/format";
+import { POSITION_COMMUNE, distanceDepuis, filtreRayonCommune } from "@/lib/proximite";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 
-type ResultItem = { kind: "Table" | "Jeu" | "Carte" | "Club"; level?: string; title: string; meta: string; href: string; km: number };
+type ResultItem = { kind: "Table" | "Jeu" | "Carte" | "Club"; level?: string; title: string; meta: string; href: string; km: number | null };
 
 const TYPES = [
   { value: "", key: "search.all" },
@@ -16,6 +17,17 @@ const TYPES = [
   { value: "Carte", key: "search.kind.Carte" },
   { value: "Club", key: "search.kind.Club" },
 ];
+/**
+ * Rayons proposés, en kilomètres.
+ *
+ * Les anciennes valeurs (2 à 15 km) étaient calibrées sur des distances
+ * inventées, toutes tirées dans une fourchette étroite. Maintenant qu'elles
+ * sont réelles, il faut de quoi couvrir une agglomération comme une région :
+ * hors des grandes villes, le joueur le plus proche est rarement à 8 km.
+ */
+const RAYONS_KM = [5, 15, 25, 50, 100];
+const RAYON_DEFAUT = 25;
+
 const LEVELS = [
   { value: "", key: "search.all" },
   { value: "BEGINNER", key: "level.BEGINNER" },
@@ -32,50 +44,59 @@ export default async function SearchPage({
   const locale = await getLocale();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const { type = "", level = "", distance = "8" } = await searchParams;
-  const maxKm = Number(distance) || 8;
+  const { type = "", level = "", distance = String(RAYON_DEFAUT) } = await searchParams;
+  const maxKm = Number(distance) || RAYON_DEFAUT;
+
+  // Sans commune sur son propre compte, aucune distance n'est calculable : on
+  // montre alors tout, en le disant, plutôt que de filtrer sur du vide.
+  const origine = user.commune;
+  const rayon = origine ? filtreRayonCommune(origine, maxKm) : {};
+  const dansLeRayon = (km: number | null) => !origine || (km !== null && km <= maxKm);
 
   const results: ResultItem[] = [];
 
   if (!type || type === "Table") {
     const events = await prisma.event.findMany({
-      where: { status: "ACTIVE", startAt: { gte: new Date() }, ...(level ? { level: level as never } : {}) },
-      include: { host: true }, take: 20,
+      where: { status: "ACTIVE", startAt: { gte: new Date() }, ...(level ? { level: level as never } : {}), ...rayon },
+      include: { host: true, commune: POSITION_COMMUNE }, take: 20,
     });
     for (const e of events) {
-      const km = pseudoDistanceKm(e.id);
-      if (km <= maxKm) results.push({ kind: "Table", level: e.level, title: e.title, meta: `${formatEventDate(e.startAt, locale)} · ${e.location ?? e.city}`, href: `/events/${e.id}`, km });
+      const km = distanceDepuis(origine, e);
+      if (dansLeRayon(km)) results.push({ kind: "Table", level: e.level, title: e.title, meta: `${formatEventDate(e.startAt, locale)} · ${e.location ?? e.city}`, href: `/events/${e.id}`, km });
     }
   }
   if (!type || type === "Jeu") {
     const copies = await prisma.gameCopy.findMany({
-      where: { status: "ON_TABLE", ownerId: { not: user.id }, ...(level ? { game: { level: level as never } } : {}) },
-      include: { game: true, owner: true }, take: 20,
+      where: { status: "ON_TABLE", ownerId: { not: user.id }, ...(level ? { game: { level: level as never } } : {}), ...(origine ? { owner: rayon } : {}) },
+      include: { game: true, owner: { include: { commune: POSITION_COMMUNE } } }, take: 20,
     });
     for (const c of copies) {
-      const km = pseudoDistanceKm(c.id);
-      if (km <= maxKm) results.push({ kind: "Jeu", level: c.game.level ?? undefined, title: c.game.title, meta: t("search.meta.game", { name: c.owner.name }), href: `/games/${c.game.id}`, km });
+      const km = distanceDepuis(origine, c.owner);
+      if (dansLeRayon(km)) results.push({ kind: "Jeu", level: c.game.level ?? undefined, title: c.game.title, meta: t("search.meta.game", { name: c.owner.name }), href: `/games/${c.game.id}`, km });
     }
   }
   if (!type || type === "Carte") {
     const cardCopies = await prisma.cardCopy.findMany({
-      where: { status: "ON_TABLE", ownerId: { not: user.id } },
-      include: { card: true, owner: true }, take: 20,
+      where: { status: "ON_TABLE", ownerId: { not: user.id }, ...(origine ? { owner: rayon } : {}) },
+      include: { card: true, owner: { include: { commune: POSITION_COMMUNE } } }, take: 20,
     });
     for (const c of cardCopies) {
-      const km = pseudoDistanceKm(c.id);
-      if (km <= maxKm) results.push({ kind: "Carte", title: c.card.name, meta: t("search.meta.card", { name: c.owner.name, set: c.card.setName ?? "" }), href: "/cards", km });
+      const km = distanceDepuis(origine, c.owner);
+      if (dansLeRayon(km)) results.push({ kind: "Carte", title: c.card.name, meta: t("search.meta.card", { name: c.owner.name, set: c.card.setName ?? "" }), href: "/cards", km });
     }
   }
   if (!type || type === "Club") {
-    const clubs = await prisma.club.findMany({ include: { _count: { select: { memberships: true } } }, take: 10 });
+    const clubs = await prisma.club.findMany({
+      where: rayon,
+      include: { _count: { select: { memberships: true } }, commune: POSITION_COMMUNE }, take: 10,
+    });
     for (const club of clubs) {
-      const km = pseudoDistanceKm(club.id);
-      if (km <= maxKm) results.push({ kind: "Club", title: club.name, meta: t("search.meta.club", { city: club.city, members: club._count.memberships }), href: `/clubs/${club.id}`, km });
+      const km = distanceDepuis(origine, club);
+      if (dansLeRayon(km)) results.push({ kind: "Club", title: club.name, meta: t("search.meta.club", { city: club.city, members: club._count.memberships }), href: `/clubs/${club.id}`, km });
     }
   }
 
-  results.sort((a, b) => a.km - b.km);
+  results.sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
@@ -84,8 +105,13 @@ export default async function SearchPage({
           <div className="text-xs font-bold uppercase tracking-widest text-gold">{t("search.eyebrow")}</div>
           <h1 className="mt-1 font-display text-3xl text-cream">{t("search.title")}</h1>
           <p className="mt-2 text-sm text-ink-soft">
-            {t("search.results", { count: results.length, km: maxKm })}
+            {origine ? t("search.results", { count: results.length, km: maxKm }) : t("search.results.noCommune", { count: results.length })}
           </p>
+          {!origine && (
+            <p className="mt-2 text-sm text-gold">
+              <Link href="/profile/edit" className="underline">{t("search.setCommune")}</Link>
+            </p>
+          )}
 
           <div className="mt-6 flex flex-col gap-6">
             <div>
@@ -111,7 +137,7 @@ export default async function SearchPage({
             <div>
               <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gold">{t("search.distance")}</div>
               <div className="flex flex-wrap gap-1.5">
-                {[2, 5, 8, 15].map((km) => (
+                {RAYONS_KM.map((km) => (
                   <Link key={km} href={`/search?${new URLSearchParams({ type, level, distance: String(km) }).toString()}`}>
                     <Button type="button" size="sm" variant={maxKm === km ? "primary" : "secondary"}>{km} km</Button>
                   </Link>
@@ -138,7 +164,7 @@ export default async function SearchPage({
                     <div className="mt-0.5 truncate font-display text-base text-cream">{r.title}</div>
                     <div className="truncate text-xs text-ink-soft">{r.meta}</div>
                   </div>
-                  <Badge variant="outline" className="flex-none">{formatDistanceKm(r.km, t)}</Badge>
+                  <Badge variant="outline" className="flex-none">{formatDistanceKm(r.km, locale, t)}</Badge>
                 </Card>
               </Link>
             ))

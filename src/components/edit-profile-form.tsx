@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { updateProfileAction } from "@/lib/actions/users";
 import { Button, Input, Label, Select, Textarea, ErrorText } from "@/components/ui";
 import { PhotoInput } from "@/components/photo-input";
+import { CommuneInput } from "@/components/commune-input";
 import { playerLevels } from "@/lib/validation";
 import { useT } from "@/lib/i18n/client";
 import { LOCALES, LOCALE_NAMES } from "@/lib/i18n/types";
@@ -11,6 +12,7 @@ import { LOCALES, LOCALE_NAMES } from "@/lib/i18n/types";
 type ProfileData = {
   name: string;
   city: string;
+  communeCode: string | null;
   bio: string | null;
   experienceLevel: string;
   avatarUrl: string | null;
@@ -27,10 +29,7 @@ export function EditProfileForm({ user }: { user: ProfileData }) {
         <Label htmlFor="name">{t("profile.field.name")}</Label>
         <Input id="name" name="name" defaultValue={user.name} required />
       </div>
-      <div>
-        <Label htmlFor="city">{t("profile.field.city")}</Label>
-        <Input id="city" name="city" defaultValue={user.city} required />
-      </div>
+      <CommuneInput label={t("profile.field.city")} defaultValue={user.city} defaultCode={user.communeCode} required />
       <div>
         <Label htmlFor="experienceLevel">{t("profile.field.level")}</Label>
         <Select id="experienceLevel" name="experienceLevel" defaultValue={user.experienceLevel} required>
