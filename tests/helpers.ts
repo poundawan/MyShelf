@@ -117,10 +117,27 @@ export function datetimeLocal(daysFromNow: number, hour = 20) {
  */
 export function watchForPageErrors(page: Page) {
   const errors: string[] = [];
+
+  // Une exception JavaScript est toujours de notre fait.
   page.on("pageerror", (error) => errors.push(`${page.url()} : ${error.message}`));
+
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(`${page.url()} : ${message.text()}`);
+    if (message.type() !== "error") return;
+
+    // Les ressources servies par un tiers — une jaquette hébergée chez
+    // BoardGameGeek, par exemple — sont injoignables depuis l'environnement de
+    // test, qui n'a aucun accès sortant. Leur échec de chargement dit quelque
+    // chose du bac à sable, pas de l'application.
+    //
+    // On ne relâche la surveillance que pour ce qui vient d'ailleurs : une
+    // image manquante sur notre propre domaine reste une erreur, et c'est bien
+    // ainsi qu'un logo absent a été rattrapé.
+    const origine = message.location().url;
+    if (origine && !origine.startsWith("http://127.0.0.1")) return;
+
+    errors.push(`${page.url()} : ${message.text()}`);
   });
+
   return errors;
 }
 

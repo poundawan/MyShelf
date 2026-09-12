@@ -25,19 +25,24 @@ export async function addGameCopyAction(_prevState: ActionState, formData: FormD
     description: formData.get("description"),
     photoUrl: formData.get("photoUrl"),
     bggId: formData.get("bggId"),
+    titreOriginal: formData.get("titreOriginal"),
   });
 
   if (!parsed.success) {
     return { error: t(parsed.error.issues[0]?.message ?? "validation.form") };
   }
 
-  const { title, category, condition, minPlayers, maxPlayers, durationMin, description, photoUrl, bggId } = parsed.data;
+  const { title, category, condition, minPlayers, maxPlayers, durationMin, description, photoUrl, bggId, titreOriginal } = parsed.data;
 
   // Le champ caché vient du sélecteur BoardGameGeek, mais rien n'empêche de
   // poster ce formulaire à la main : on ne recopie une URL distante que si
   // elle désigne bien une image de chez eux.
   const jaquetteDistante = photoUrl && estImageBgg(photoUrl) ? photoUrl : null;
   const identifiantBgg = /^[0-9]{1,9}$/.test(bggId ?? "") ? Number(bggId) : null;
+
+  // Le titre d'origine n'a de sens que rattaché à une fiche BoardGameGeek.
+  // Sans identifiant, ce champ caché ne prouve rien et on l'ignore.
+  const titreBgg = identifiantBgg && titreOriginal ? titreOriginal.trim() : null;
 
   // Une photo envoyée l'emporte sur la jaquette reprise du catalogue : c'est
   // un geste explicite, contre une valeur pré-remplie.
@@ -49,7 +54,19 @@ export async function addGameCopyAction(_prevState: ActionState, formData: FormD
   // plutôt que d'en créer une deuxième. L'identifiant BGG prime sur le titre,
   // qui peut différer d'une orthographe à l'autre.
   let game = identifiantBgg ? await prisma.game.findUnique({ where: { bggId: identifiantBgg } }) : null;
-  game ??= await prisma.game.findFirst({ where: { title: { equals: title.trim(), mode: "insensitive" } } });
+  // À défaut d'identifiant, on rapproche par le titre — le sien ou celui
+  // d'origine. C'est ce qui évite qu'une fiche enregistrée sous « Les
+  // Aventuriers du Rail » soit dupliquée par quelqu'un qui saisit « Ticket to
+  // Ride » à la main.
+  game ??= await prisma.game.findFirst({
+    where: {
+      OR: [
+        { title: { equals: title.trim(), mode: "insensitive" } },
+        { titreOriginal: { equals: title.trim(), mode: "insensitive" } },
+        ...(titreBgg ? [{ title: { equals: titreBgg, mode: "insensitive" as const } }] : []),
+      ],
+    },
+  });
 
   if (!game) {
     game = await prisma.game.create({
@@ -62,6 +79,7 @@ export async function addGameCopyAction(_prevState: ActionState, formData: FormD
         description: description || null,
         photoUrl: jaquette,
         bggId: identifiantBgg,
+        titreOriginal: titreBgg,
       },
     });
   } else if (!game.photoUrl && jaquette) {

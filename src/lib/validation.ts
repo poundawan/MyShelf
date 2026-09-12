@@ -36,6 +36,7 @@ export const gameCopySchema = z.object({
   description: z.string().trim().max(2000).optional().or(z.literal("")),
   photoUrl: z.string().trim().url("validation.photoUrl").optional().or(z.literal("")),
   bggId: z.string().optional().or(z.literal("")),
+  titreOriginal: z.string().trim().max(200).optional().or(z.literal("")),
 });
 
 export const cardCopySchema = z.object({

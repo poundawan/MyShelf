@@ -283,6 +283,12 @@ fonctionnel et honnête, mais pas encore tout à fait conforme.
   modifiable, et **le renommer ne coupe pas le lien** vers la fiche choisie.
   Les descriptions, elles, ne sont pas importées du tout : elles seraient en
   anglais.
+- Le titre d'origine est conservé dans `Game.titreOriginal` et affiché sous le
+  titre choisi. Il sert au rapprochement : une fiche enregistrée sous « Les
+  Aventuriers du Rail » est retrouvée par quelqu'un qui saisit « Ticket to
+  Ride » à la main, au lieu d'être dupliquée. En revanche, **la recherche par
+  titre reste à écrire** — l'application n'en propose aujourd'hui que pour les
+  tables et les cartes.
 - Données et visuels : BoardGameGeek, usage non commercial.
 
 ## Géolocalisation

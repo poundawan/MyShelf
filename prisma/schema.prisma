@@ -121,20 +121,27 @@ model User {
 }
 
 model Game {
-  id          String       @id @default(cuid())
-  title       String
-  category    GameCategory
-  level       PlayerLevel? // difficulté du jeu
-  minPlayers  Int?
-  maxPlayers  Int?
-  durationMin Int?
-  minAge      Int?
-  description String?
-  photoUrl    String?
+  id            String       @id @default(cuid())
+  title         String
+  category      GameCategory
+  level         PlayerLevel? // difficulté du jeu
+  minPlayers    Int?
+  maxPlayers    Int?
+  durationMin   Int?
+  minAge        Int?
+  description   String?
+  photoUrl      String?
   /// Fiche BoardGameGeek d'origine, quand le jeu a été repris de leur catalogue.
   /// Unique : deux personnes qui importent le même jeu partagent la même fiche.
-  bggId       Int?         @unique
-  createdAt   DateTime     @default(now())
+  bggId         Int?         @unique
+  /// Titre sous lequel BoardGameGeek catalogue le jeu — « Ticket to Ride »
+  /// quand `title` dit « Les Aventuriers du Rail ».
+  ///
+  /// Conservé pour que deux personnes qui ajoutent le même jeu sous des noms
+  /// différents tombent sur la même fiche du catalogue partagé. L'API, elle,
+  /// n'en a pas besoin : elle ne connaît que `bggId`.
+  titreOriginal String?
+  createdAt     DateTime     @default(now())
 
   copies  GameCopy[]
   wants   GameWant[]

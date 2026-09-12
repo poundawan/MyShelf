@@ -67,6 +67,9 @@ export default async function GameDetailPage({ params }: PageProps<"/games/[id]"
             {game.level && <Badge variant="outline">{t(`level.${game.level}`)}</Badge>}
           </div>
           <h1 className="mt-3 font-display text-3xl text-cream">{game.title}</h1>
+          {game.titreOriginal && game.titreOriginal !== game.title && (
+            <p className="mt-1 text-sm text-ink-soft">{t("game.originalTitle", { title: game.titreOriginal })}</p>
+          )}
           {game.description && <p className="mt-3 text-sm leading-relaxed text-ink-soft">{game.description}</p>}
           {/* La fiche vient de leur catalogue : leurs conditions demandent que
               la mention accompagne la donnée, pas seulement l'import. */}

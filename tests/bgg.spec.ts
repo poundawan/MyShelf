@@ -50,14 +50,49 @@ test.describe("Recherche BoardGameGeek", () => {
     await page.getByRole("button", { name: "Ajouter à mon étagère" }).click();
     await page.waitForURL(/\/games\/[a-z0-9]+$/);
 
-    const jeu = await one<{ photoUrl: string | null; bggId: number | null }>(
-      'SELECT "photoUrl", "bggId" FROM "Game" WHERE title = $1', [titre],
+    const jeu = await one<{ photoUrl: string | null; bggId: number | null; titreOriginal: string | null }>(
+      'SELECT "photoUrl", "bggId", "titreOriginal" FROM "Game" WHERE title = $1', [titre],
     );
     expect(jeu.photoUrl).toContain("cf.geekdo-images.com");
     // Renommer ne coupe pas le lien : BoardGameGeek catalogue sous le titre
     // d'origine, et traduire est le geste attendu dans une application
     // francophone.
     expect(jeu.bggId).toBe(266192);
+    // Et le titre d'origine est conservé, pour que la fiche reste trouvable
+    // sous le nom de leur catalogue.
+    expect(jeu.titreOriginal).toBe("Wingspan");
+
+    await expect(page.getByText("Titre d'origine : Wingspan")).toBeVisible();
+  });
+
+  test("un jeu saisi sous son titre d'origine rejoint la fiche déjà renommée", async ({ page }) => {
+    await login(page, "chloe");
+    await chercher(page, "wingspan");
+    await page.getByRole("button", { name: /Wingspan/ }).first().click();
+
+    await page.fill("#title", `Les Ailes ${Date.now()}`);
+    await page.getByRole("button", { name: "Ajouter à mon étagère" }).click();
+    await page.waitForURL(/\/games\/[a-z0-9]+$/);
+
+    // Le catalogue est partagé et `bggId` est unique : cette fiche peut déjà
+    // exister, sous le titre qu'une autre personne lui a donné. C'est
+    // précisément le comportement testé — on relève donc le titre réellement
+    // enregistré plutôt que de supposer le nôtre.
+    const premier = page.url();
+    const titreRetenu = await page.locator("h1").first().innerText();
+    expect(titreRetenu).not.toBe("Wingspan");
+
+    // Quelqu'un d'autre ajoute le même jeu à la main, sous le titre du
+    // catalogue de BoardGameGeek : il doit tomber sur la même fiche, pas en
+    // créer une seconde.
+    await login(page, "bastien");
+    await page.goto("/shelf/new");
+    await page.fill("#title", "Wingspan");
+    await page.getByRole("button", { name: "Ajouter à mon étagère" }).click();
+    await page.waitForURL(/\/games\/[a-z0-9]+$/);
+
+    expect(page.url(), "les deux copies doivent partager la même fiche").toBe(premier);
+    await expect(page.locator("h1").first()).toHaveText(titreRetenu);
   });
 
   test("aucun résultat le dit, sans parler de panne", async ({ page }) => {

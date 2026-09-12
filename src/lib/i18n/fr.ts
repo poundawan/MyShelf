@@ -192,6 +192,7 @@ export const fr: Dictionary = {
   "game.field.cover.fromBgg": "Reprise du catalogue BoardGameGeek.",
 
   // ---------- fiche jeu ----------
+  "game.originalTitle": "Titre d'origine : {title}",
   "game.back": "← Retour à l'étagère",
   "game.placeholder": "visuel boîte 3:4",
   "game.placeholder.card": "visuel boîte",

@@ -12,6 +12,8 @@ import type { JeuBgg } from "@/lib/bgg";
 /** Champs que le catalogue BoardGameGeek sait pré-remplir. */
 type Reprise = {
   title: string;
+  /** Le titre tel que BoardGameGeek le catalogue, conservé même après renommage. */
+  titreOriginal: string;
   minPlayers: string;
   maxPlayers: string;
   durationMin: string;
@@ -19,7 +21,7 @@ type Reprise = {
   bggId: string;
 };
 
-const VIDE: Reprise = { title: "", minPlayers: "", maxPlayers: "", durationMin: "", photoUrl: "", bggId: "" };
+const VIDE: Reprise = { title: "", titreOriginal: "", minPlayers: "", maxPlayers: "", durationMin: "", photoUrl: "", bggId: "" };
 
 export default function NewGamePage() {
   const [state, formAction, pending] = useActionState(addGameCopyAction, undefined);
@@ -29,6 +31,7 @@ export default function NewGamePage() {
   function reprendre(jeu: JeuBgg) {
     setChamps({
       title: jeu.title,
+      titreOriginal: jeu.title,
       minPlayers: jeu.minPlayers ? String(jeu.minPlayers) : "",
       maxPlayers: jeu.maxPlayers ? String(jeu.maxPlayers) : "",
       durationMin: jeu.durationMin ? String(jeu.durationMin) : "",
@@ -147,9 +150,13 @@ export default function NewGamePage() {
 
           <PhotoInput name="photo" label={t("game.field.photo")} ratio="aspect-[3/4]" />
 
-          {/* Remplis par le sélecteur BoardGameGeek, jamais saisis à la main. */}
+          {/* Remplis par le sélecteur BoardGameGeek, jamais saisis à la main.
+              Le titre d'origine survit au renommage : c'est lui qui permettra
+              à quelqu'un cherchant « Ticket to Ride » de retrouver la fiche
+              enregistrée sous « Les Aventuriers du Rail ». */}
           <input type="hidden" name="photoUrl" value={champs.photoUrl} />
           <input type="hidden" name="bggId" value={champs.bggId} />
+          <input type="hidden" name="titreOriginal" value={champs.titreOriginal} />
 
           <ErrorText>{state?.error}</ErrorText>
           <Button type="submit" disabled={pending} className="mt-2">
