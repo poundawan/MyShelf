@@ -110,6 +110,7 @@ La suite couvre les 20 écrans de l'application, sur trois niveaux :
 | `tests/langue.spec.ts` | Bascule français/anglais, y compris les messages de validation et les notifications ; langues de jeu d'une table. |
 | `tests/photos.spec.ts` | Envoi d'un avatar, d'une salle et d'une jaquette, refus d'un fichier qui n'est pas une image, suppression de l'ancienne photo, en-têtes de la route de service. |
 | `tests/bgg.spec.ts` | Recherche BoardGameGeek de bout en bout contre un faux serveur local : réponse normale, aucun résultat, HTTP 500, HTTP 202, serveur muet, filtre par type infructueux, puis le sélecteur à l'écran. |
+| `tests/bgg.spec.ts` (suite) | Recherche par texte : un jeu retrouvé sous son titre choisi comme sous celui d'origine, et le terme qui survit au changement de filtre. |
 | `tests/geo.spec.ts` | Distances comparées à des valeurs connues (Lyon–Paris, Lyon–Marseille), boîte englobante qui n'écarte jamais un voisin réel, référentiel chargé, autocomplétion via l'API d'adresses (ordre d'importance conservé, faute de frappe rattrapée, panne signalée, commune inconnue écartée), rayon réellement appliqué, absence de distance inventée. |
 
 Chaque test vérifie à la fois l'écran et l'état réel en base : un affichage peut mentir, pas la
@@ -286,9 +287,9 @@ fonctionnel et honnête, mais pas encore tout à fait conforme.
 - Le titre d'origine est conservé dans `Game.titreOriginal` et affiché sous le
   titre choisi. Il sert au rapprochement : une fiche enregistrée sous « Les
   Aventuriers du Rail » est retrouvée par quelqu'un qui saisit « Ticket to
-  Ride » à la main, au lieu d'être dupliquée. En revanche, **la recherche par
-  titre reste à écrire** — l'application n'en propose aujourd'hui que pour les
-  tables et les cartes.
+  Ride » à la main, au lieu d'être dupliquée. La **recherche par texte** de
+  `/search` interroge les deux titres : chercher « Ticket to Ride » remonte la
+  fiche enregistrée sous « Les Aventuriers du Rail », et réciproquement.
 - Données et visuels : BoardGameGeek, usage non commercial.
 
 ## Géolocalisation

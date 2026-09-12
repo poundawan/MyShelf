@@ -191,6 +191,48 @@ test.describe("Recherche BoardGameGeek", () => {
   });
 });
 
+test.describe("Recherche par titre dans MyShelf", () => {
+  test("un jeu se retrouve sous son titre choisi comme sous celui d'origine", async ({ page }) => {
+    // Marius pose sur sa table un jeu repris de BoardGameGeek, renommé en
+    // français : c'est le cas que le titre d'origine doit servir.
+    await login(page, "marius");
+    await chercher(page, "wingspan");
+    await page.getByRole("button", { name: /Wingspan/ }).first().click();
+    const titreFr = `Les Ailes ${Date.now()}`;
+    await page.fill("#title", titreFr);
+    await page.getByRole("button", { name: "Ajouter à mon étagère" }).click();
+    await page.waitForURL(/\/games\/[a-z0-9]+$/);
+    // Le catalogue est partagé : la fiche peut porter le titre d'un autre.
+    const titreRetenu = await page.locator("h1").first().innerText();
+
+    await login(page, "chloe");
+
+    // Sous le titre affiché…
+    await page.goto(`/search?type=Jeu&distance=1000&q=${encodeURIComponent(titreRetenu.split(" ")[0])}`);
+    await expect(page.getByText(titreRetenu).first()).toBeVisible();
+
+    // …et sous celui du catalogue de BoardGameGeek, que personne n'a tapé.
+    await page.goto("/search?type=Jeu&distance=1000&q=Wingspan");
+    await expect(page.getByText(titreRetenu).first()).toBeVisible();
+
+    // Un terme sans rapport ne doit rien remonter.
+    await page.goto("/search?type=Jeu&distance=1000&q=zzzinexistant");
+    await expect(page.getByText(titreRetenu)).toHaveCount(0);
+  });
+
+  test("le terme survit au changement de filtre", async ({ page }) => {
+    await login(page, "chloe");
+    await page.goto("/search?q=Wingspan&distance=1000");
+    await expect(page.getByText(/pour « Wingspan »/)).toBeVisible();
+
+    // Changer de niveau ne doit pas effacer la recherche en cours.
+    await page.getByRole("button", { name: "Débutant" }).click();
+    await page.waitForURL(/level=BEGINNER/);
+    await expect(page.getByText(/pour « Wingspan »/)).toBeVisible();
+    await expect(page.locator("#q")).toHaveValue("Wingspan");
+  });
+});
+
 test.describe("Analyse des réponses XML", () => {
   test("l'analyse d'une réponse /search donne les identifiants", () => {
     const xml = readFileSync(fixture("bgg-search.xml"), "utf8");

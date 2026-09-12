@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { Card, Badge, Button } from "@/components/ui";
+import { Card, Badge, Button, Input } from "@/components/ui";
 import { formatDistanceKm, formatEventDate } from "@/lib/format";
 import { POSITION_COMMUNE, distanceDepuis, filtreRayonCommune } from "@/lib/proximite";
 import { getT, getLocale } from "@/lib/i18n/server";
@@ -38,14 +38,18 @@ const LEVELS = [
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; level?: string; distance?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; level?: string; distance?: string }>;
 }) {
   const t = await getT();
   const locale = await getLocale();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const { type = "", level = "", distance = String(RAYON_DEFAUT) } = await searchParams;
+  const { q = "", type = "", level = "", distance = String(RAYON_DEFAUT) } = await searchParams;
   const maxKm = Number(distance) || RAYON_DEFAUT;
+  const terme = q.trim().slice(0, 80);
+
+  /** Filtre textuel appliqué aux champs d'un type de résultat. */
+  const commePartie = { contains: terme, mode: "insensitive" as const };
 
   // Sans commune sur son propre compte, aucune distance n'est calculable : on
   // montre alors tout, en le disant, plutôt que de filtrer sur du vide.
@@ -57,7 +61,12 @@ export default async function SearchPage({
 
   if (!type || type === "Table") {
     const events = await prisma.event.findMany({
-      where: { status: "ACTIVE", startAt: { gte: new Date() }, ...(level ? { level: level as never } : {}), ...rayon },
+      where: {
+        status: "ACTIVE", startAt: { gte: new Date() },
+        ...(level ? { level: level as never } : {}),
+        ...(terme ? { OR: [{ title: commePartie }, { city: commePartie }, { location: commePartie }] } : {}),
+        ...rayon,
+      },
       include: { host: true, commune: POSITION_COMMUNE }, take: 20,
     });
     for (const e of events) {
@@ -67,7 +76,24 @@ export default async function SearchPage({
   }
   if (!type || type === "Jeu") {
     const copies = await prisma.gameCopy.findMany({
-      where: { status: "ON_TABLE", ownerId: { not: user.id }, ...(level ? { game: { level: level as never } } : {}), ...(origine ? { owner: rayon } : {}) },
+      where: {
+        status: "ON_TABLE", ownerId: { not: user.id },
+        // Un seul objet `game` : deux clés du même nom se seraient écrasées,
+        // et chercher un titre aurait silencieusement annulé le filtre de niveau.
+        //
+        // Le titre d'origine compte autant que celui choisi : c'est ce qui
+        // permet de retrouver « Les Aventuriers du Rail » en tapant
+        // « Ticket to Ride », et l'inverse.
+        ...(level || terme
+          ? {
+              game: {
+                ...(level ? { level: level as never } : {}),
+                ...(terme ? { OR: [{ title: commePartie }, { titreOriginal: commePartie }] } : {}),
+              },
+            }
+          : {}),
+        ...(origine ? { owner: rayon } : {}),
+      },
       include: { game: true, owner: { include: { commune: POSITION_COMMUNE } } }, take: 20,
     });
     for (const c of copies) {
@@ -77,7 +103,11 @@ export default async function SearchPage({
   }
   if (!type || type === "Carte") {
     const cardCopies = await prisma.cardCopy.findMany({
-      where: { status: "ON_TABLE", ownerId: { not: user.id }, ...(origine ? { owner: rayon } : {}) },
+      where: {
+        status: "ON_TABLE", ownerId: { not: user.id },
+        ...(terme ? { card: { OR: [{ name: commePartie }, { setName: commePartie }] } } : {}),
+        ...(origine ? { owner: rayon } : {}),
+      },
       include: { card: true, owner: { include: { commune: POSITION_COMMUNE } } }, take: 20,
     });
     for (const c of cardCopies) {
@@ -87,7 +117,7 @@ export default async function SearchPage({
   }
   if (!type || type === "Club") {
     const clubs = await prisma.club.findMany({
-      where: rayon,
+      where: { ...(terme ? { OR: [{ name: commePartie }, { city: commePartie }] } : {}), ...rayon },
       include: { _count: { select: { memberships: true } }, commune: POSITION_COMMUNE }, take: 10,
     });
     for (const club of clubs) {
@@ -106,6 +136,7 @@ export default async function SearchPage({
           <h1 className="mt-1 font-display text-3xl text-cream">{t("search.title")}</h1>
           <p className="mt-2 text-sm text-ink-soft">
             {origine ? t("search.results", { count: results.length, km: maxKm }) : t("search.results.noCommune", { count: results.length })}
+            {terme && ` · ${t("search.for", { terme })}`}
           </p>
           {!origine && (
             <p className="mt-2 text-sm text-gold">
@@ -114,11 +145,26 @@ export default async function SearchPage({
           )}
 
           <div className="mt-6 flex flex-col gap-6">
+            {/* Formulaire en GET : la recherche reste dans l'URL, donc
+                partageable et rechargeable, et les filtres la conservent. */}
+            <form method="get" action="/search">
+              <label htmlFor="q" className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-gold">
+                {t("search.text")}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Input id="q" name="q" defaultValue={terme} placeholder={t("search.text.placeholder")} className="min-w-0 flex-1" />
+                <Button type="submit" size="sm">{t("search.text.submit")}</Button>
+              </div>
+              <input type="hidden" name="type" value={type} />
+              <input type="hidden" name="level" value={level} />
+              <input type="hidden" name="distance" value={String(maxKm)} />
+            </form>
+
             <div>
               <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gold">{t("search.type")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {TYPES.map((ty) => (
-                  <Link key={ty.value} href={`/search?${new URLSearchParams({ type: ty.value, level, distance }).toString()}`}>
+                  <Link key={ty.value} href={`/search?${new URLSearchParams({ q: terme, type: ty.value, level, distance }).toString()}`}>
                     <Button type="button" size="sm" variant={type === ty.value ? "primary" : "secondary"}>{t(ty.key)}</Button>
                   </Link>
                 ))}
@@ -128,7 +174,7 @@ export default async function SearchPage({
               <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gold">{t("search.level")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {LEVELS.map((l) => (
-                  <Link key={l.value} href={`/search?${new URLSearchParams({ type, level: l.value, distance }).toString()}`}>
+                  <Link key={l.value} href={`/search?${new URLSearchParams({ q: terme, type, level: l.value, distance }).toString()}`}>
                     <Button type="button" size="sm" variant={level === l.value ? "primary" : "secondary"}>{t(l.key)}</Button>
                   </Link>
                 ))}
@@ -138,7 +184,7 @@ export default async function SearchPage({
               <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gold">{t("search.distance")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {RAYONS_KM.map((km) => (
-                  <Link key={km} href={`/search?${new URLSearchParams({ type, level, distance: String(km) }).toString()}`}>
+                  <Link key={km} href={`/search?${new URLSearchParams({ q: terme, type, level, distance: String(km) }).toString()}`}>
                     <Button type="button" size="sm" variant={maxKm === km ? "primary" : "secondary"}>{km} km</Button>
                   </Link>
                 ))}
