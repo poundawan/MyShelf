@@ -37,13 +37,15 @@ test.describe("Recherche BoardGameGeek", () => {
     await expect(page.getByText("Reprise du catalogue BoardGameGeek.")).toBeVisible();
   });
 
-  test("le jeu ajouté garde la jaquette reprise du catalogue", async ({ page }) => {
+  test("le jeu ajouté garde la jaquette et le lien vers le catalogue", async ({ page }) => {
     await login(page, "marius");
     await chercher(page, "wingspan");
     await page.getByRole("button", { name: /Wingspan/ }).first().click();
 
-    // Un titre unique : le catalogue est partagé et le test doit être rejouable.
-    const titre = `Wingspan ${Date.now()}`;
+    // Renommé en français, comme le ferait quelqu'un qui n'achète pas ses
+    // jeux en version originale. Le suffixe rend le test rejouable : le
+    // catalogue est partagé.
+    const titre = `Les Ailes ${Date.now()}`;
     await page.fill("#title", titre);
     await page.getByRole("button", { name: "Ajouter à mon étagère" }).click();
     await page.waitForURL(/\/games\/[a-z0-9]+$/);
@@ -52,8 +54,10 @@ test.describe("Recherche BoardGameGeek", () => {
       'SELECT "photoUrl", "bggId" FROM "Game" WHERE title = $1', [titre],
     );
     expect(jeu.photoUrl).toContain("cf.geekdo-images.com");
-    // Modifier le titre à la main détache la fiche du catalogue de BGG.
-    expect(jeu.bggId).toBeNull();
+    // Renommer ne coupe pas le lien : BoardGameGeek catalogue sous le titre
+    // d'origine, et traduire est le geste attendu dans une application
+    // francophone.
+    expect(jeu.bggId).toBe(266192);
   });
 
   test("aucun résultat le dit, sans parler de panne", async ({ page }) => {

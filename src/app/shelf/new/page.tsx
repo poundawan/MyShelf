@@ -38,11 +38,21 @@ export default function NewGamePage() {
   }
 
   /**
-   * Modifier un champ à la main détache la fiche de BoardGameGeek : le titre
-   * n'est plus celui de leur catalogue, l'identifiant ne doit plus le prétendre.
+   * Modifier un champ ne détache pas la fiche de BoardGameGeek.
+   *
+   * C'était le cas au départ, et c'était une erreur : BoardGameGeek catalogue
+   * les jeux sous leur titre d'origine — « Ticket to Ride », pas « Les
+   * Aventuriers du Rail » —, et leur API n'indique la langue d'aucun titre
+   * alternatif. Renommer en français est donc le geste le plus naturel qui
+   * soit ici, et il ne doit pas couper le lien vers une fiche que la personne
+   * a choisie explicitement.
+   *
+   * L'identifiant étant unique sur le catalogue partagé, deux personnes qui
+   * importent le même jeu convergent vers la même fiche, quel que soit le
+   * titre sous lequel la première l'a enregistrée.
    */
   function modifier(champ: keyof Reprise, valeur: string) {
-    setChamps((prev) => ({ ...prev, [champ]: valeur, ...(champ === "title" ? { bggId: "" } : {}) }));
+    setChamps((prev) => ({ ...prev, [champ]: valeur }));
   }
 
   return (

@@ -276,6 +276,13 @@ fonctionnel et honnête, mais pas encore tout à fait conforme.
   BGG — le champ est caché, donc falsifiable.
 - `Game.bggId` est unique : deux personnes qui importent le même jeu partagent
   la même fiche du catalogue, quelle que soit l'orthographe du titre.
+- **Les titres arrivent en version originale.** BoardGameGeek catalogue chaque
+  jeu sous son nom de publication — « Ticket to Ride », pas « Les Aventuriers
+  du Rail » — et son API n'indique la langue d'aucun titre alternatif : choisir
+  automatiquement le nom français n'est donc pas possible. Le champ reste
+  modifiable, et **le renommer ne coupe pas le lien** vers la fiche choisie.
+  Les descriptions, elles, ne sont pas importées du tout : elles seraient en
+  anglais.
 - Données et visuels : BoardGameGeek, usage non commercial.
 
 ## Géolocalisation
