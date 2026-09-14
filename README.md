@@ -80,10 +80,41 @@ Organise une partie (jeu de société, jeu de rôle, TCG ou découverte) avec ni
 créneau, nombre de places et liste "à apporter". Aperçu en direct de la carte pendant la saisie.
 Les autres joueurs réservent une place ; l'hôte peut annuler.
 
+#### Tables récurrentes
+
+Une table peut revenir toutes les semaines, une semaine sur deux ou tous les mois, jusqu'à une
+date de fin choisie à l'ouverture. **Chaque séance est une vraie table**, avec ses propres
+inscrits : on vient un jeudi sans s'engager pour les suivants, et une séance s'annule sans
+emporter la série. C'est le seul découpage qui dise la vérité — on s'inscrit à une soirée, pas à
+une habitude.
+
+Les séances sont engendrées une fois pour toutes à la création, dans la limite de soixante :
+rien ne se crée ensuite dans le dos de l'organisateur, et une date de fin saisie de travers ne
+peut pas remplir la base. Le formulaire annonce le nombre de séances avant d'écrire quoi que ce
+soit.
+
+Dans les listes et dans la recherche, une série ne paraît qu'une fois, à sa prochaine séance,
+signalée par sa cadence ; les autres dates s'atteignent depuis sa fiche. Côté organisateur, une
+modification peut se répercuter sur les séances suivantes (case à cocher), et « Annuler toute la
+série » annule les séances à venir en ne prévenant chaque inscrit qu'une seule fois.
+
+Ce qui n'est **pas** fait : prolonger une série arrivée à son terme (il faut en ouvrir une
+nouvelle), et les exceptions de calendrier — une séance déplacée se modifie à la main.
+
 ### Recherche (`/search`)
 
 Recherche unifiée à travers tables, jeux, cartes et clubs, avec filtres par type, niveau et
 distance.
+
+Deux précisions sur les filtres :
+
+- **Distance.** Aux rayons de 5 à 100 km s'ajoute « Partout », qui lève le plafond. Ce n'est pas
+  qu'un très grand rayon : sans limite, les lignes dont on ignore la commune cessent d'être
+  écartées et s'affichent en fin de liste, distance inconnue. Un jeu rare ou une convention
+  annuelle deviennent trouvables au lieu de rester invisibles.
+- **Type de table.** Jeu de société, jeu de rôle, TCG ou découverte. Choisir un type restreint la
+  recherche aux tables — c'est le seul genre de résultat qui en ait un — et quitter les tables
+  emporte le filtre, pour qu'il ne reste jamais actif en douce.
 
 ### Messages (`/messages`)
 
@@ -463,14 +494,13 @@ Voir `prisma/schema.prisma` :
 - `Review` (avis, contexte libre + note)
 - `Photo` (octets, type MIME, dimensions, auteur de l'envoi)
 - `Commune` (code INSEE, nom, code postal, département, latitude, longitude)
-
-Il n'y a pas de génération d'occurrences pour les tables récurrentes (le champ est informatif
-seulement).
+- `EventSeries` (cadence + date de fin d'une table récurrente ; les séances sont des `Event`
+  ordinaires reliés par `seriesId`)
 
 ## Pistes d'évolution
 
 - Carte interactive, une fois choisi un fournisseur de tuiles.
 - Notifications par e-mail ou push (celles dans l'application existent).
-- Occurrences générées pour les tables récurrentes (le champ est informatif).
+- Prolonger une série arrivée à son terme, et déplacer une séance sans casser la cadence.
 - Corriger une fiche du catalogue partagé (titre, durée, nombre de joueurs).
 - Ajouter d'autres langues que le français et l'anglais.

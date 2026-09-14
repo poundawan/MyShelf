@@ -2,6 +2,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { chargerCommunes, rattacherCommunes } from "./communes";
+import { seancesSuivantes } from "../src/lib/recurrence";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -154,6 +155,36 @@ async function main() {
     startAt: daysFromNow(2, 19, 0), maxParticipants: 8,
     participants: { create: [marius, bastien].map((u) => ({ userId: u.id })) },
   }});
+
+  // Une table qui revient, pour que la récurrence ne soit pas qu'une case à
+  // cocher dans un formulaire : huit jeudis de suite, chacun avec ses propres
+  // inscrits.
+  const serie = await prisma.eventSeries.create({
+    data: { frequency: "WEEKLY", untilAt: daysFromNow(52, 23, 59) },
+  });
+  const jeudisCommun = {
+    hostId: chloe.id, clubId: club.id, title: "Les jeudis du Comptoir",
+    type: "DISCOVERY" as const, level: "BEGINNER" as const,
+    description: "Toutes les semaines, même heure, même table du fond. On sort trois boîtes, on explique les règles, personne n'est en retard puisque personne n'a de programme.",
+    city: "Lyon 7e", communeCode: null as string | null,
+    location: "Comptoir des Halles, Lyon 7e",
+    maxParticipants: 10, seriesId: serie.id,
+  };
+  const premierJeudi = daysFromNow(3, 20);
+  const jeudis = await prisma.event.createManyAndReturn({
+    data: [premierJeudi, ...seancesSuivantes(premierJeudi, "WEEKLY", daysFromNow(52, 23, 59))]
+      .map((startAt) => ({ ...jeudisCommun, startAt })),
+    select: { id: true, startAt: true },
+  });
+  await prisma.eventParticipant.createMany({
+    data: jeudis.map((seance) => ({ eventId: seance.id, userId: chloe.id })),
+  });
+  // Quelques inscriptions sur la première séance seulement : on vient au jeudi
+  // qui arrange, pas à tous.
+  const prochainJeudi = jeudis[0];
+  await prisma.eventParticipant.createMany({
+    data: [lea, amandine, bastien].map((u) => ({ eventId: prochainJeudi.id, userId: u.id })),
+  });
 
   const conv = await prisma.conversation.create({ data: { userAId: chloe.id, userBId: marius.id } });
   const t0 = Date.now();

@@ -172,7 +172,8 @@ test.describe("Pages connectées", () => {
 
     await page.goto("/search");
     await expect(page.getByRole("heading", { name: "Recherche", level: 1 })).toBeVisible();
-    await expect(page.getByText("Type")).toBeVisible();
+    await expect(page.getByText("Type", { exact: true })).toBeVisible();
+    await expect(page.getByText("Type de table")).toBeVisible();
     await expect(page.getByText(/résultat/)).toBeVisible();
     await expectNoHorizontalOverflow(page);
 

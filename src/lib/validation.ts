@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FREQUENCES, MAX_SEANCES, compterSeances } from "@/lib/recurrence";
 
 /**
  * Les messages de ces schémas sont des CLÉS de traduction, pas du texte.
@@ -25,6 +26,7 @@ export const itemConditions = ["NEW", "LIKE_NEW", "GOOD", "WORN"] as const;
 export const cardRarities = ["COMMON", "RARE", "FOIL", "MYTHIC"] as const;
 export const eventTypes = ["BOARD_GAME", "ROLE_PLAYING", "TCG", "DISCOVERY"] as const;
 export const locales = ["FR", "EN"] as const;
+export const frequences = FREQUENCES;
 
 export const gameCopySchema = z.object({
   title: z.string().trim().min(1, "validation.title.required").max(120),
@@ -125,3 +127,48 @@ export const eventUpdateSchema = eventSchema.extend({
       return date;
     }),
 });
+
+/**
+ * Récurrence d'une table, saisie à la seule création.
+ *
+ * Volontairement tenue à l'écart de `eventSchema` : modifier une séance ne
+ * doit pas pouvoir redéfinir la cadence de toute la série en passant par le
+ * même formulaire. Une série se décide une fois.
+ *
+ * `frequency` vide — le cas courant — donne `null` : la table n'a lieu qu'une
+ * fois, et rien d'autre n'est demandé.
+ */
+export const recurrenceSchema = z
+  .object({
+    frequency: z.enum(frequences).or(z.literal("")),
+    untilAt: z.string().optional().or(z.literal("")),
+    startAt: z.date(),
+  })
+  .transform((valeurs, ctx) => {
+    if (!valeurs.frequency) return null;
+
+    if (!valeurs.untilAt) {
+      ctx.addIssue({ code: "custom", message: "validation.until.required" });
+      return z.NEVER;
+    }
+    const jusquA = new Date(valeurs.untilAt);
+    if (Number.isNaN(jusquA.getTime())) {
+      ctx.addIssue({ code: "custom", message: "validation.until.invalid" });
+      return z.NEVER;
+    }
+    // Une date de fin est un jour, pas un instant : sans cela, « jusqu'au
+    // 19 mars » tomberait à minuit et laisserait la séance du 19 au soir
+    // dehors.
+    jusquA.setHours(23, 59, 59, 999);
+
+    if (jusquA.getTime() <= valeurs.startAt.getTime()) {
+      ctx.addIssue({ code: "custom", message: "validation.until.after" });
+      return z.NEVER;
+    }
+    const seances = compterSeances(valeurs.startAt, valeurs.frequency, jusquA);
+    if (seances > MAX_SEANCES) {
+      ctx.addIssue({ code: "custom", message: "validation.until.tooMany" });
+      return z.NEVER;
+    }
+    return { frequency: valeurs.frequency, untilAt: jusquA };
+  });

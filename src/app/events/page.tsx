@@ -5,6 +5,7 @@ import { EventCard } from "@/components/event-card";
 import { Input, Select, Button, Card } from "@/components/ui";
 import { eventTypes } from "@/lib/validation";
 import { getT, getLocale } from "@/lib/i18n/server";
+import { replierSeries } from "@/lib/recurrence";
 
 export default async function EventsPage({
   searchParams,
@@ -16,7 +17,11 @@ export default async function EventsPage({
   const locale = await getLocale();
   const user = await getCurrentUser();
 
-  const events = await prisma.event.findMany({
+  // Une table récurrente n'apparaît qu'une fois, à sa prochaine séance. On
+  // ratisse donc plus large que ce qu'on affiche : sans cela, une série
+  // hebdomadaire suffirait à remplir la page à elle seule, et les autres
+  // tables disparaîtraient derrière elle.
+  const seances = await prisma.event.findMany({
     where: {
       status: "ACTIVE",
       startAt: { gte: new Date() },
@@ -24,10 +29,15 @@ export default async function EventsPage({
       ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
       ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
     },
-    include: { host: true, _count: { select: { participants: true } } },
+    include: {
+      host: true,
+      series: { select: { frequency: true } },
+      _count: { select: { participants: true } },
+    },
     orderBy: { startAt: "asc" },
-    take: 60,
+    take: 300,
   });
+  const events = replierSeries(seances).slice(0, 60);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">

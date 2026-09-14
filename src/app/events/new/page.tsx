@@ -12,7 +12,7 @@ export default async function NewEventPage() {
       <p className="mt-2 text-sm text-ink-soft">{t("event.new.lede")}</p>
 
       <div className="mt-8">
-        <EventForm action={createEventAction} submitLabel={t("event.new.submit")} pendingLabel={t("event.new.pending")} />
+        <EventForm action={createEventAction} submitLabel={t("event.new.submit")} pendingLabel={t("event.new.pending")} recurrence />
       </div>
     </div>
   );

@@ -63,6 +63,12 @@ enum EventStatus {
   CANCELLED
 }
 
+enum EventFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
 enum TradeKind {
   GAME
   CARD
@@ -266,6 +272,10 @@ model Event {
   endAt           DateTime?
   maxParticipants Int?
   status          EventStatus @default(ACTIVE)
+  /// Série dont cette séance fait partie, quand la table est récurrente.
+  /// `null` pour une table qui n'a lieu qu'une fois — l'immense majorité.
+  seriesId        String?
+  series          EventSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -276,6 +286,25 @@ model Event {
   @@index([communeCode])
   @@index([startAt])
   @@index([hostId])
+  @@index([seriesId])
+}
+
+/// Une table qui revient : « tous les jeudis au Comptoir ».
+///
+/// La série ne porte que la cadence, jamais le contenu. Chaque séance est un
+/// `Event` complet, avec ses propres inscrits, sa propre photo, sa propre
+/// annulation. C'est le seul découpage qui dise la vérité : on s'inscrit à une
+/// soirée, pas à une habitude, et on peut venir jeudi sans venir jeudi
+/// prochain.
+model EventSeries {
+  id        String         @id @default(cuid())
+  frequency EventFrequency
+  /// Date de la dernière séance engendrée. La série s'arrête là : rien ne se
+  /// crée tout seul dans le dos de l'organisateur, il prolonge s'il le veut.
+  untilAt   DateTime
+  createdAt DateTime       @default(now())
+
+  events Event[]
 }
 
 model EventParticipant {

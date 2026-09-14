@@ -2,13 +2,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { joinEventAction, leaveEventAction, cancelEventAction } from "@/lib/actions/events";
+import { joinEventAction, leaveEventAction, cancelEventAction, cancelSeriesAction } from "@/lib/actions/events";
 import { startConversationAction } from "@/lib/actions/messages";
 import { createEventReviewAction } from "@/lib/actions/reviews";
 import { Badge, Button, Avatar, Card, Stars } from "@/components/ui";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { LOCALE_NAMES, type Locale } from "@/lib/i18n/types";
-import { formatEventRange } from "@/lib/format";
+import { formatEventRange, formatEventDate } from "@/lib/format";
 import { ReviewForm } from "@/components/review-form";
 
 export default async function EventDetailPage({ params }: PageProps<"/events/[id]">) {
@@ -22,10 +22,22 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
     include: {
       host: true,
       club: true,
+      series: { select: { frequency: true } },
       participants: { include: { user: true }, orderBy: { joinedAt: "asc" } },
     },
   });
   if (!event) notFound();
+
+  // Les autres séances de la même série, pour qu'on puisse s'inscrire à celle
+  // qui arrange plutôt qu'à celle sur laquelle on est tombé.
+  const autresSeances = event.seriesId
+    ? await prisma.event.findMany({
+        where: { seriesId: event.seriesId, status: "ACTIVE", id: { not: event.id }, startAt: { gte: new Date() } },
+        orderBy: { startAt: "asc" },
+        take: 6,
+        select: { id: true, startAt: true },
+      })
+    : [];
 
   const isHost = user?.id === event.hostId;
   const isParticipant = user ? event.participants.some((p) => p.userId === user.id) : false;
@@ -54,6 +66,7 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
           <div className="flex flex-wrap gap-2">
             <Badge variant="primary">{t(`eventType.${event.type}`)}</Badge>
             <Badge variant="outline">{t(`level.${event.level}`)}</Badge>
+            {event.series && <Badge variant="outline">{t(`recurrence.${event.series.frequency}`)}</Badge>}
             {event.status === "CANCELLED" && <Badge variant="danger">{t("event.cancelled")}</Badge>}
           </div>
           <h1 className="mt-3 font-display text-3xl text-cream">{event.title}</h1>
@@ -82,8 +95,15 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
                   <Button variant="secondary" size="sm">{t("common.edit")}</Button>
                 </Link>
                 <form action={cancelEventAction.bind(null, event.id)}>
-                  <Button type="submit" variant="danger" size="sm">{t("event.cancel")}</Button>
+                  <Button type="submit" variant="danger" size="sm">
+                    {event.series ? t("event.cancelOne") : t("event.cancel")}
+                  </Button>
                 </form>
+                {event.series && (
+                  <form action={cancelSeriesAction.bind(null, event.id)}>
+                    <Button type="submit" variant="danger" size="sm">{t("event.cancelSeries")}</Button>
+                  </form>
+                )}
               </div>
             ) : isParticipant ? (
               <form action={leaveEventAction.bind(null, event.id)}>
@@ -166,6 +186,19 @@ export default async function EventDetailPage({ params }: PageProps<"/events/[id
               ))}
             </div>
           </Card>
+          {autresSeances.length > 0 && (
+            <Card className="p-4">
+              <h3 className="mb-1 text-sm font-bold text-cream">{t("event.series.others")}</h3>
+              <p className="mb-3 text-xs text-ink-soft">{t("event.series.othersHelp")}</p>
+              <div className="flex flex-col gap-1.5">
+                {autresSeances.map((seance) => (
+                  <Link key={seance.id} href={`/events/${seance.id}`} className="text-sm text-gold hover:underline">
+                    {formatEventDate(seance.startAt, locale)}
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          )}
           {event.bringList && (
             <Card className="border-wood bg-wood/20 p-4">
               <h3 className="mb-1 text-sm font-bold text-cream">{t("event.bring")}</h3>

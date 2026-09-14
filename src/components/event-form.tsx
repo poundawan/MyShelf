@@ -7,6 +7,7 @@ import { PhotoInput } from "@/components/photo-input";
 import { CommuneInput } from "@/components/commune-input";
 import { eventTypeEmoji } from "@/lib/labels";
 import { eventTypes, playerLevels } from "@/lib/validation";
+import { FREQUENCES, MAX_SEANCES, compterSeances, type Frequence } from "@/lib/recurrence";
 import { useT } from "@/lib/i18n/client";
 import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/types";
 import { cn } from "@/lib/utils";
@@ -42,11 +43,17 @@ export function EventForm({
   values = EMPTY,
   submitLabel,
   pendingLabel,
+  recurrence = false,
+  dansUneSerie = false,
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
   values?: EventFormValues;
   submitLabel: string;
   pendingLabel: string;
+  /** Proposer une cadence. Réservé à l'ouverture : une série se décide une fois. */
+  recurrence?: boolean;
+  /** La séance modifiée fait partie d'une série : proposer d'en répercuter la correction. */
+  dansUneSerie?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const t = useT();
@@ -57,6 +64,31 @@ export function EventForm({
   const [city, setCity] = useState(values.city);
   const [location, setLocation] = useState(values.location);
   const [maxParticipants, setMaxParticipants] = useState(values.maxParticipants);
+  const [startAt, setStartAt] = useState(values.startAt);
+  const [frequency, setFrequency] = useState("");
+  const [untilAt, setUntilAt] = useState("");
+
+  // Compte annoncé avant d'écrire quoi que ce soit : personne ne doit
+  // découvrir après coup qu'il vient de créer cinquante-deux tables.
+  const debut = startAt ? new Date(startAt) : null;
+  const fin = untilAt ? new Date(`${untilAt}T23:59:59`) : null;
+  const seances =
+    frequency && debut && fin && !Number.isNaN(debut.getTime()) && !Number.isNaN(fin.getTime()) && fin > debut
+      ? compterSeances(debut, frequency as Frequence, fin)
+      : null;
+
+  /**
+   * Au premier choix de cadence, propose trois mois : une date de fin vide
+   * ferait échouer l'envoi, et « pour toujours » n'existe pas ici.
+   */
+  function choisirFrequence(valeur: string) {
+    setFrequency(valeur);
+    if (valeur && !untilAt && debut && !Number.isNaN(debut.getTime())) {
+      const defaut = new Date(debut);
+      defaut.setMonth(defaut.getMonth() + 3);
+      setUntilAt(defaut.toISOString().slice(0, 10));
+    }
+  }
 
   // Une table doit se jouer dans au moins une langue : on empêche de décocher
   // la dernière plutôt que de laisser le serveur refuser après coup.
@@ -175,7 +207,7 @@ export function EventForm({
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="startAt">{t("event.field.start")}</Label>
-              <Input id="startAt" name="startAt" type="datetime-local" defaultValue={values.startAt} required />
+              <Input id="startAt" name="startAt" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} required />
             </div>
             <div>
               <Label htmlFor="endAt">{t("event.field.end")}</Label>
@@ -186,6 +218,60 @@ export function EventForm({
               <Input id="maxParticipants" name="maxParticipants" type="number" min={1} value={maxParticipants} onChange={(e) => setMaxParticipants(e.target.value)} placeholder="6" />
             </div>
           </div>
+
+          {recurrence && (
+            <div>
+              <Label>{t("event.field.recurrence")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {["", ...FREQUENCES].map((valeur) => (
+                  <button
+                    key={valeur || "NONE"}
+                    type="button"
+                    onClick={() => choisirFrequence(valeur)}
+                    aria-pressed={frequency === valeur}
+                    className={cn(
+                      "rounded-sm border px-3.5 py-2 text-sm font-bold",
+                      frequency === valeur ? "border-gold bg-gold text-gold-ink" : "border-border-strong text-ink-soft",
+                    )}
+                  >
+                    {t(`recurrence.${valeur || "NONE"}`)}
+                  </button>
+                ))}
+              </div>
+              <input type="hidden" name="frequency" value={frequency} />
+              {frequency && (
+                <div className="mt-3">
+                  <Label htmlFor="untilAt">{t("event.field.until")}</Label>
+                  <Input
+                    id="untilAt"
+                    name="untilAt"
+                    type="date"
+                    value={untilAt}
+                    onChange={(e) => setUntilAt(e.target.value)}
+                    required
+                  />
+                  <p className="mt-2 text-xs text-ink-soft">
+                    {seances === null
+                      ? t("event.field.until.help")
+                      : seances > MAX_SEANCES
+                        ? t("event.field.until.tooMany", { max: MAX_SEANCES })
+                        : t("event.field.until.count", { count: seances })}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {dansUneSerie && (
+            <label className="flex items-start gap-2 rounded-sm border border-border-strong p-3 text-sm text-ink-soft">
+              <input type="checkbox" name="applyToSeries" value="1" className="mt-0.5" />
+              <span>
+                <span className="font-bold text-cream">{t("event.field.applyToSeries")}</span>
+                <br />
+                {t("event.field.applyToSeries.help")}
+              </span>
+            </label>
+          )}
 
           <ErrorText>{state?.error}</ErrorText>
           <Button type="submit" disabled={pending} className="mt-2">

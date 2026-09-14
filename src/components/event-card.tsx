@@ -13,6 +13,8 @@ export type EventCardData = {
   startAt: Date;
   maxParticipants: number | null;
   languages?: string[];
+  seriesId?: string | null;
+  series?: { frequency: string } | null;
   host: { name: string };
   _count: { participants: number };
 };
@@ -32,6 +34,7 @@ export function EventCard({ event, t, locale }: { event: EventCardData; t: Trans
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="primary">{t(`eventType.${event.type}`)}</Badge>
           <Badge variant="outline">{t(`level.${event.level}`)}</Badge>
+          {event.series && <Badge variant="outline">{t(`recurrence.${event.series.frequency}`)}</Badge>}
         </div>
         <div className="mt-auto flex flex-col gap-1 pt-2 text-xs text-ink-soft">
           <div>{formatEventDate(event.startAt, locale)}</div>
