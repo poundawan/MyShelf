@@ -32,15 +32,44 @@ Dans ton projet Supabase → **Project Settings → Database → Connection stri
 ### Peupler la base de production
 
 La base Supabase est vide au premier déploiement : un nouvel arrivant tombe sur une application
-sans aucun jeu ni table. Pour y installer le jeu de démonstration, depuis ta machine :
+sans aucun jeu ni table. Deux façons d'y installer le jeu de démonstration.
+
+#### Depuis le navigateur, sans terminal (recommandé)
+
+Un workflow GitHub Actions — `.github/workflows/peupler.yml` — fait le travail sur demande.
+
+1. **Une seule fois**, déposer les identifiants de la base : dépôt GitHub → **Settings** →
+   **Secrets and variables** → **Actions** → **New repository secret**. Deux secrets à créer,
+   avec les valeurs relevées dans Supabase (voir la section précédente) :
+   - `PROD_DATABASE_URL` → l'URL du *transaction pooler* (port `6543`)
+   - `PROD_DIRECT_URL` → l'URL du *pooler* en port `5432`
+
+   ⚠️ Pour ce workflow, `PROD_DIRECT_URL` doit pointer sur le **pooler**, pas sur la connexion
+   « directe » de Supabase : cette dernière n'existe qu'en IPv6, dont les machines de GitHub
+   Actions ne disposent pas.
+
+2. **À chaque fois** : onglet **Actions** → workflow **« Peupler la base de production »** →
+   **Run workflow** → écrire `peupler` dans le champ de confirmation → lancer.
+
+Le workflow applique les migrations, charge le référentiel des communes, puis installe le jeu de
+démonstration. Il n'est **jamais** déclenché par un push : uniquement à la main, et seulement par
+quelqu'un ayant le droit d'écrire sur le dépôt. Les dates des tables sont calculées au moment de
+l'exécution — le jeu de démonstration n'arrive donc jamais périmé.
+
+#### Depuis une machine avec Node
 
 ```bash
 DATABASE_URL="<l'URL Supabase>" DIRECT_URL="<l'URL Supabase>" npx prisma db seed
 ```
 
+#### Dans les deux cas
+
 Le script **refuse de s'exécuter si la base contient déjà des jeux**, il est donc sans risque à
 relancer : il ne créera jamais de doublons. (`SEED_FORCE=1` passe outre, à n'utiliser qu'en
-connaissance de cause.)
+connaissance de cause — et non exposé par le workflow, justement parce que c'est un piège.)
+
+Corollaire à connaître : une base déjà peuplée ne se met pas à jour toute seule quand le jeu de
+démonstration évolue. Il faut alors la vider d'abord.
 
 Les six comptes de démonstration partagent le mot de passe `password123` — à considérer comme
 des comptes publics, pas comme de vrais utilisateurs.

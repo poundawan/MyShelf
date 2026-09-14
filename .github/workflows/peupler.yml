@@ -1,0 +1,90 @@
+# « Peupler la base »
+#
+# Installe le jeu de démonstration dans la base Supabase de production, depuis
+# l'interface web de GitHub — sans terminal.
+#
+# Ce workflow ne se déclenche QUE à la main (`workflow_dispatch`) : il n'est
+# jamais lancé par un push ni par une pull request, et une branche venue d'un
+# fork n'a de toute façon jamais accès aux secrets. Seules les personnes ayant
+# le droit d'écrire sur le dépôt peuvent le déclencher — ce qui compte, le
+# dépôt étant public.
+name: Peupler la base de production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Écris « peupler » pour confirmer (garde-fou contre un clic de travers)"
+        required: true
+        default: ""
+
+jobs:
+  peupler:
+    name: Migrations et jeu de démonstration
+    runs-on: ubuntu-latest
+
+    env:
+      # Les deux doivent pointer sur le POOLER Supabase (aws-0-….pooler.
+      # supabase.com). La connexion dite « directe » de Supabase n'existe qu'en
+      # IPv6, dont les machines de GitHub Actions ne disposent pas : elle
+      # échouerait ici avec une erreur de résolution difficile à lire.
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Vérifier la confirmation
+        if: inputs.confirmation != 'peupler'
+        run: |
+          echo "::error::Confirmation absente ou incorrecte. Relance en écrivant « peupler » dans le champ prévu."
+          exit 1
+
+      - name: Vérifier que les secrets sont renseignés
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$DIRECT_URL" ]; then
+            echo "::error::Il manque les secrets PROD_DATABASE_URL et/ou PROD_DIRECT_URL."
+            echo "::error::Dépôt → Settings → Secrets and variables → Actions → New repository secret."
+            exit 1
+          fi
+          # On ne montre jamais la chaîne de connexion : elle contient le mot de
+          # passe de la base. Le nom d'hôte seul suffit à vérifier la cible, et
+          # il n'est pas secret.
+          echo "Cible : $(echo "$DATABASE_URL" | sed -E 's#.*@([^/:]+).*#\1#')"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` déclenche `postinstall` → `prisma generate` : le client Prisma
+      # est un fichier généré, le seed ne peut pas démarrer sans lui.
+      - name: Installer les dépendances
+        run: npm ci
+
+      # Sans effet si les tables sont déjà là ; indispensable au premier coup.
+      - name: Appliquer les migrations
+        run: npx prisma migrate deploy
+
+      # Le seed charge d'abord le référentiel des communes (37 283 localités),
+      # puis REFUSE de continuer si la base contient déjà des jeux. Il est donc
+      # sans danger à relancer : il ne créera jamais de doublons.
+      - name: Installer le jeu de démonstration
+        run: npx tsx prisma/seed.ts
+
+      - name: Récapitulatif
+        if: success()
+        run: |
+          {
+            echo "### Base peuplée"
+            echo ""
+            echo "Comptes de démonstration, mot de passe \`password123\` :"
+            echo ""
+            echo "- chloe@example.com — Chloé Barrat"
+            echo "- marius@example.com, lea@example.com, bastien@example.com,"
+            echo "  sofiane@example.com, amandine@example.com"
+            echo ""
+            echo "Ces comptes sont **publics** : leur mot de passe figure dans le README."
+            echo "À traiter comme une vitrine, pas comme de vrais utilisateurs."
+          } >> "$GITHUB_STEP_SUMMARY"
