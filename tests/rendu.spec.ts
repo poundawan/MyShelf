@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { one, login, userId, watchForPageErrors, expectNoHorizontalOverflow } from "./helpers";
+import {
+  one, login, userId, watchForPageErrors, expectNoHorizontalOverflow, expectHeaderWithinContainer,
+} from "./helpers";
 
 /**
  * Niveau 1 — rendu.
@@ -8,6 +10,30 @@ import { one, login, userId, watchForPageErrors, expectNoHorizontalOverflow } fr
  * erreur JavaScript et sans déborder horizontalement. Ce fichier est rejoué
  * sur mobile (iPhone 13) en plus du bureau.
  */
+
+/**
+ * Largeurs de bureau à éprouver.
+ *
+ * 1280 est la plus étroite où tous les paliers `xl:` sont actifs : c'est là
+ * que le bandeau est à son plus large alors que son conteneur, plafonné par
+ * `max-w-6xl`, ne grandit plus. Le défaut y est né et n'y était visible que
+ * dans un environnement où les polices rendent un peu plus large.
+ */
+const LARGEURS_BUREAU = [1024, 1280, 1440, 1920];
+
+test.describe("Bandeau de navigation", () => {
+  test("il tient dans son conteneur à toutes les largeurs de bureau", async ({ page }, infos) => {
+    test.skip(infos.project.name !== "bureau", "mesure propre au gabarit de bureau");
+    await login(page, "chloe");
+
+    for (const largeur of LARGEURS_BUREAU) {
+      await page.setViewportSize({ width: largeur, height: 800 });
+      await page.goto("/events");
+      await expectHeaderWithinContainer(page);
+      await expectNoHorizontalOverflow(page);
+    }
+  });
+});
 
 test.describe("Pages publiques", () => {
   test("la connexion et l'inscription s'affichent", async ({ page }) => {

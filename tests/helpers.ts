@@ -189,3 +189,45 @@ export async function expectNoHorizontalOverflow(page: Page) {
     `la page ne doit pas déborder horizontalement — ${detail}`,
   ).toBeLessThanOrEqual(0);
 }
+
+/**
+ * Vérifie que le bandeau de navigation tient dans son propre conteneur.
+ *
+ * Invariant plus serré que l'absence de débordement de page, et c'est tout
+ * l'intérêt : le conteneur de l'en-tête est plafonné à `max-w-6xl`, donc large
+ * de 1152 px quelle que soit la taille de l'écran. Un contenu qui le dépasse
+ * déborde d'abord dans les marges — invisible tant que l'écran est assez
+ * large — puis hors de l'écran dès que les polices rendent quelques pixels
+ * plus large qu'ailleurs.
+ *
+ * C'est exactement ce qui s'est produit : le défaut passait inaperçu en
+ * développement et faisait échouer dix tests en intégration continue, où les
+ * mêmes pages se rendaient 17 px plus large.
+ */
+export async function expectHeaderWithinContainer(page: Page) {
+  const mesures = await page.evaluate(() => {
+    const conteneur = document.querySelector("header > div") as HTMLElement | null;
+    if (!conteneur) return null;
+    const boite = conteneur.getBoundingClientRect();
+    const style = getComputedStyle(conteneur);
+    const bordDroit = boite.right - parseFloat(style.paddingRight);
+
+    let debordement = 0;
+    let fautif = "";
+    for (const element of Array.from(conteneur.children)) {
+      const rect = element.getBoundingClientRect();
+      const sortie = rect.right - bordDroit;
+      if (sortie > debordement) {
+        debordement = sortie;
+        fautif = `${element.tagName.toLowerCase()}[${String(element.className || "").slice(0, 60)}] droite=${Math.round(rect.right)}`;
+      }
+    }
+    return { largeur: Math.round(boite.width), bordDroit: Math.round(bordDroit), debordement: Math.round(debordement), fautif };
+  });
+
+  expect(mesures, "l'en-tête devrait avoir un conteneur").not.toBeNull();
+  expect(
+    mesures!.debordement,
+    `le bandeau déborde de son conteneur (large de ${mesures!.largeur}, bord droit à ${mesures!.bordDroit}) : ${mesures!.fautif}`,
+  ).toBeLessThanOrEqual(0);
+}

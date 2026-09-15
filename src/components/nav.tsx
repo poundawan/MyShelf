@@ -52,7 +52,7 @@ export async function Nav() {
           <>
             {/* Les six libellés complets ne tiennent qu'à partir de `lg` :
                 en dessous, c'est la barre d'onglets du bas de l'en-tête. */}
-            <nav className="hidden flex-1 items-center gap-0.5 lg:flex">
+            <nav className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-hidden lg:flex">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const badge = item.badgeKey === "trades" ? pendingTrades : 0;
@@ -60,7 +60,7 @@ export async function Nav() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex flex-none items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-2 text-[13px] font-semibold text-cream-soft transition-colors hover:bg-black/10 hover:text-cream xl:px-3"
+                    className="flex flex-none items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-2 text-[13px] font-semibold text-cream-soft transition-colors hover:bg-black/10 hover:text-cream"
                   >
                     <Icon className="size-4" />
                     {t(`nav.${item.key}`)}
@@ -116,19 +116,20 @@ export async function Nav() {
                   <span className="block text-[10px] text-cream-soft">{t("nav.level", { level })}</span>
                 </span>
               </Link>
-              {/* En dessous de `xl` la déconnexion se réduit à son icône : le
-                  libellé coûte ~100 px et faisait déborder l'en-tête. */}
+              {/* La déconnexion reste une icône à toutes les largeurs. Son
+                  libellé coûte 68 px, et le conteneur de l'en-tête est
+                  plafonné à 1152 px quelle que soit la taille de l'écran :
+                  le révéler au-delà d'un palier ne lui donnait aucune place
+                  supplémentaire, cela ne faisait que déplacer le
+                  débordement. L'`aria-label` porte le libellé. */}
               <form action={logoutAction}>
                 <button
                   type="submit"
                   aria-label={t("nav.logout")}
-                  className="flex size-9 items-center justify-center rounded-sm text-cream-soft transition-colors hover:bg-black/10 hover:text-cream xl:hidden"
+                  className="flex size-9 items-center justify-center rounded-sm text-cream-soft transition-colors hover:bg-black/10 hover:text-cream"
                 >
                   <LogOut className="size-4" />
                 </button>
-                <Button type="submit" variant="ghost" size="sm" className="hidden text-cream-soft hover:text-cream xl:inline-flex">
-                  {t("nav.logout")}
-                </Button>
               </form>
             </div>
           </>
