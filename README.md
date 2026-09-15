@@ -48,6 +48,13 @@ Un workflow GitHub Actions — `.github/workflows/peupler.yml` — fait le trava
    « directe » de Supabase : cette dernière n'existe qu'en IPv6, dont les machines de GitHub
    Actions ne disposent pas.
 
+   Les deux valeurs sont des URI complètes, de la forme
+   `postgresql://postgres.<ref>:<mot-de-passe>@aws-<n>-<région>.pooler.supabase.com:<port>/postgres`.
+   Coller autre chose — le nom de la variable devant la valeur, des guillemets, un préfixe
+   `psql`, ou les paramètres de connexion recopiés un par un — donne un `P1013` de Prisma. Le
+   workflow vérifie la forme des deux chaînes avant de toucher à la base et nomme celle qui
+   cloche ; il n'affiche que l'hôte et le port, jamais le mot de passe.
+
 2. **À chaque fois** : onglet **Actions** → workflow **« Peupler la base de production »** →
    **Run workflow** → écrire `peupler` dans le champ de confirmation → lancer.
 

@@ -39,21 +39,57 @@ jobs:
           echo "::error::Confirmation absente ou incorrecte. Relance en écrivant « peupler » dans le champ prévu."
           exit 1
 
-      - name: Vérifier que les secrets sont renseignés
+      # Les deux chaînes sont vérifiées ici, et pas seulement l'une d'elles :
+      # `prisma migrate deploy` se sert de DIRECT_URL, si bien qu'une erreur
+      # dans ce secret-là ressortait trois étapes plus loin sous la forme d'un
+      # « P1013 » de Prisma qui ne dit ni quelle variable est en cause, ni
+      # pourquoi. On préfère échouer tout de suite, en nommant le coupable.
+      - name: Vérifier la forme des chaînes de connexion
         run: |
-          if [ -z "$DATABASE_URL" ] || [ -z "$DIRECT_URL" ]; then
-            echo "::error::Il manque les secrets PROD_DATABASE_URL et/ou PROD_DIRECT_URL."
-            echo "::error::Dépôt → Settings → Secrets and variables → Actions → New repository secret."
+          # N'affiche jamais que l'hôte et le port, jamais l'identifiant ni le
+          # mot de passe — et seulement après extraction réussie. La version
+          # précédente renvoyait la chaîne entière quand elle ne correspondait
+          # pas au motif attendu, et ne devait qu'au masquage de GitHub de ne
+          # pas l'avoir divulguée.
+          verifier() {
+            nom="$1"; valeur="$2"
+            if [ -z "$valeur" ]; then
+              echo "::error::$nom est absent ou vide."
+              echo "::error::Dépôt → Settings → Secrets and variables → Actions → New repository secret."
+              return 1
+            fi
+            case "$valeur" in
+              postgresql://*|postgres://*) ;;
+              *)
+                echo "::error::$nom ne commence pas par « postgresql:// »."
+                echo "::error::Causes habituelles : le nom de la variable recopié devant la valeur (DATABASE_URL=…), des guillemets autour, un préfixe « psql », un espace ou un retour à la ligne au début, ou les paramètres de connexion recopiés un par un au lieu de l'URI."
+                return 1 ;;
+            esac
+            # On isole d'abord l'autorité (ce qui précède le premier « / »
+            # après le schéma), puis on retient ce qui suit le DERNIER « @ ».
+            # Couper au premier laisserait échapper un morceau de mot de passe
+            # quand celui-ci en contient un.
+            autorite="${valeur#*://}"
+            autorite="${autorite%%/*}"
+            hote="${autorite##*@}"
+            if [ "$hote" = "$autorite" ]; then
+              echo "::error::$nom ne contient pas de « @ » : il manque la partie identifiant:mot-de-passe."
+              return 1
+            fi
+            echo "$nom → $hote"
+          }
+
+          defaut=0
+          verifier PROD_DATABASE_URL "$DATABASE_URL" || defaut=1
+          verifier PROD_DIRECT_URL "$DIRECT_URL" || defaut=1
+          if [ "$defaut" -ne 0 ]; then
+            echo "::error::Forme attendue : postgresql://postgres.<ref>:<mot-de-passe>@aws-<n>-<région>.pooler.supabase.com:<port>/postgres"
             exit 1
           fi
-          # On ne montre jamais la chaîne de connexion : elle contient le mot de
-          # passe de la base. Le nom d'hôte seul suffit à vérifier la cible, et
-          # il n'est pas secret.
-          echo "Cible : $(echo "$DATABASE_URL" | sed -E 's#.*@([^/:]+).*#\1#')"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
