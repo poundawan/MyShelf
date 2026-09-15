@@ -141,9 +141,51 @@ export function watchForPageErrors(page: Page) {
   return errors;
 }
 
+/**
+ * Vérifie qu'aucune page ne se lit en poussant l'écran de côté.
+ *
+ * Le message d'échec nomme les éléments fautifs et les mesures qui ont servi
+ * à conclure. La version précédente se contentait d'annoncer « débordement :
+ * 10 » : de quoi savoir qu'un défaut existait, pas de quoi le trouver — et
+ * l'intégration continue est restée rouge plusieurs jours pour cette raison.
+ */
 export async function expectNoHorizontalOverflow(page: Page) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow, "la page ne doit pas déborder horizontalement").toBeLessThanOrEqual(0);
+  const mesures = await page.evaluate(() => {
+    const de = document.documentElement;
+    const limite = de.clientWidth;
+
+    const fautifs: string[] = [];
+    for (const element of Array.from(document.querySelectorAll("*"))) {
+      const rect = element.getBoundingClientRect();
+      // Une demi-pixel de marge : les arrondis de rendu ne sont pas des fautes.
+      if (rect.width > 0 && rect.right > limite + 0.5) {
+        const classes = String(element.className || "").slice(0, 70);
+        fautifs.push(
+          `${element.tagName.toLowerCase()}[${classes}] droite=${Math.round(rect.right)} largeur=${Math.round(rect.width)}`,
+        );
+      }
+    }
+
+    return {
+      clientWidth: limite,
+      innerWidth: window.innerWidth,
+      scrollWidthRacine: de.scrollWidth,
+      scrollWidthCorps: document.body.scrollWidth,
+      // Écart entre la fenêtre et la zone utile : la largeur prise par une
+      // barre de défilement verticale classique, zéro si elle est superposée.
+      barreDefilement: window.innerWidth - limite,
+      fautifs: fautifs.slice(0, 8),
+    };
+  });
+
+  const detail =
+    `racine=${mesures.scrollWidthRacine} corps=${mesures.scrollWidthCorps} ` +
+    `zone=${mesures.clientWidth} fenêtre=${mesures.innerWidth} ` +
+    `barre=${mesures.barreDefilement}` +
+    (mesures.fautifs.length ? `\nÉléments au-delà du bord :\n  ${mesures.fautifs.join("\n  ")}` : "\nAucun élément ne dépasse le bord.");
+
+  expect(
+    mesures.scrollWidthRacine - mesures.clientWidth,
+    `la page ne doit pas déborder horizontalement — ${detail}`,
+  ).toBeLessThanOrEqual(0);
 }

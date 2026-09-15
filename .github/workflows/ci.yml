@@ -21,7 +21,7 @@ jobs:
           POSTGRES_DB: myshelf_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U myshelf"
+          --health-cmd "pg_isready -U myshelf -d myshelf_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -33,9 +33,9 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -58,7 +58,7 @@ jobs:
 
       - name: Conserver le rapport en cas d'échec
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rapport-playwright
           path: |
