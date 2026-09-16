@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -71,7 +72,15 @@ async function getUserIdFromSession(): Promise<string | null> {
   }
 }
 
-export async function getCurrentUser() {
+/**
+ * Mémoïsé pour la durée d'une requête.
+ *
+ * Le bandeau de navigation et la page qu'il encadre le réclament tous les
+ * deux, et le bandeau est dans la mise en page racine : sans ce `cache`, la
+ * même ligne était lue deux fois à chaque affichage, soit un aller-retour de
+ * plus vers une base qui, en production, est de l'autre côté d'un océan.
+ */
+export const getCurrentUser = cache(async () => {
   const userId = await getUserIdFromSession();
   if (!userId) return null;
 
@@ -86,7 +95,7 @@ export async function getCurrentUser() {
       commune: { select: { latitude: true, longitude: true } },
     },
   });
-}
+});
 
 /**
  * Exige une session et renvoie l'utilisateur, ou redirige vers la connexion.

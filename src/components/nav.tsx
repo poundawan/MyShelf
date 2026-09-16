@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/lib/actions/auth";
-import { prisma } from "@/lib/prisma";
 import { Button, Avatar } from "@/components/ui";
 import { computeLevel } from "@/lib/labels";
 import { countUnread } from "@/lib/notifications";
+import { compterEchanges } from "@/lib/stats";
 import { getT } from "@/lib/i18n/server";
 import { ChevronDown, Dice5, Library, Search, ArrowLeftRight, Layers, CalendarDays, Mail, LogOut, Bell } from "lucide-react";
 
@@ -28,13 +28,12 @@ export async function Nav() {
   let unreadNotifications = 0;
 
   if (user) {
-    const [pending, completedCount, unread] = await Promise.all([
-      prisma.tradeProposal.count({ where: { toUserId: user.id, status: "PENDING" } }),
-      prisma.tradeProposal.count({ where: { OR: [{ fromUserId: user.id }, { toUserId: user.id }], status: "COMPLETED" } }),
+    const [echanges, unread] = await Promise.all([
+      compterEchanges(user.id),
       countUnread(user.id),
     ]);
-    pendingTrades = pending;
-    level = computeLevel(completedCount).level;
+    pendingTrades = echanges.enAttente;
+    level = computeLevel(echanges.termines).level;
     unreadNotifications = unread;
   }
 

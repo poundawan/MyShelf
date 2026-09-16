@@ -7,6 +7,7 @@ import { Button, Card, StatTile } from "@/components/ui";
 import { gameCategoryEmoji, eventTypeEmoji } from "@/lib/labels";
 import { formatDateShort, timeAgo, formatEventDate, formatDistanceKm, daysSince } from "@/lib/format";
 import { POSITION_COMMUNE, distanceDepuis, parProximite } from "@/lib/proximite";
+import { compterEchanges } from "@/lib/stats";
 import { CarteProximite, type PointCarte } from "@/components/carte-proximite";
 
 /**
@@ -35,10 +36,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   if (!user) redirect("/login");
   const { tab = "Tout" } = await searchParams;
 
-  const [pendingTrades, completedTrades, allUpcomingEvents, myClubMembership, incomingRequests, wantedAvailable] =
+  const [echanges, allUpcomingEvents, myClubMembership, incomingRequests, wantedAvailable] =
     await Promise.all([
-      prisma.tradeProposal.count({ where: { toUserId: user.id, status: "PENDING" } }),
-      prisma.tradeProposal.count({ where: { OR: [{ fromUserId: user.id }, { toUserId: user.id }], status: "COMPLETED" } }),
+      // Déjà demandés par le bandeau de navigation : `compterEchanges` est
+      // mémoïsé, la seconde lecture ne coûte rien.
+      compterEchanges(user.id),
       prisma.event.findMany({ where: { status: "ACTIVE", startAt: { gte: new Date() } }, include: { host: true, commune: POSITION_COMMUNE, _count: { select: { participants: true } } }, orderBy: { startAt: "asc" }, take: 12 }),
       prisma.clubMembership.findFirst({
         where: { userId: user.id },
@@ -54,6 +56,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         include: { card: { include: { copies: { where: { status: "ON_TABLE", ownerId: { not: user.id } }, include: { owner: { include: { commune: POSITION_COMMUNE } } } } } } },
       }),
     ]);
+  const { enAttente: pendingTrades, termines: completedTrades } = echanges;
 
   // Une table sans commune n'est pas « proche » : on ne sait simplement pas où
   // elle est. C'est ce que dit `distanceDepuis` en renvoyant null.
