@@ -17,6 +17,11 @@ on:
         description: "Écris « peupler » pour confirmer (garde-fou contre un clic de travers)"
         required: true
         default: ""
+      forcer:
+        description: "Installer la démo même si la base contient déjà des jeux — à ne choisir qu'une fois, sinon doublons"
+        type: choice
+        default: "non"
+        options: ["non", "oui"]
 
 jobs:
   peupler:
@@ -113,12 +118,50 @@ jobs:
       # Le seed charge d'abord le référentiel des communes (37 283 localités),
       # puis REFUSE de continuer si la base contient déjà des jeux. Il est donc
       # sans danger à relancer : il ne créera jamais de doublons.
+      #
+      # « forcer » lève ce refus. C'est utile une fois, et une seule : quand la
+      # base contient déjà autre chose — des comptes et des jeux saisis à la
+      # main — et qu'on veut y ajouter la démo à côté. Rien n'y est dupliqué
+      # puisque la démo n'y est pas encore. Lancé une deuxième fois, en
+      # revanche, il recrée tout : un second club, une seconde série de jeudis,
+      # les mêmes échanges en double. Le seed n'a aucune clé naturelle pour
+      # s'en rendre compte, d'où le refus par défaut.
       - name: Installer le jeu de démonstration
-        run: npx tsx prisma/seed.ts
+        id: seed
+        env:
+          SEED_FORCE: ${{ inputs.forcer == 'oui' && '1' || '' }}
+        run: |
+          set -o pipefail
+          if [ "$SEED_FORCE" = "1" ]; then
+            echo "::warning::Garde-fou levé : la démo sera installée même si la base contient déjà des jeux. À ne pas relancer tel quel — le second passage créerait des doublons."
+          fi
+          npx tsx prisma/seed.ts | tee seed.log
+          # Le récapitulatif doit dire ce qui s'est passé, pas ce qu'on
+          # espérait. Un seed qui renonce est un succès pour GitHub — et le
+          # résumé annonçait pourtant « base peuplée », ce qui a fait chercher
+          # des données absentes du mauvais côté.
+          if grep -q "Base déjà peuplée" seed.log; then
+            echo "installe=non" >> "$GITHUB_OUTPUT"
+          else
+            echo "installe=oui" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Récapitulatif
         if: success()
         run: |
+          if [ "${{ steps.seed.outputs.installe }}" != "oui" ]; then
+            {
+              echo "### Rien n'a été installé"
+              echo ""
+              echo "La base contenait déjà des jeux, le seed a donc renoncé — c'est son"
+              echo "garde-fou contre les doublons, pas une panne. Les migrations et le"
+              echo "référentiel des communes, eux, sont bien à jour."
+              echo ""
+              echo "Pour ajouter quand même le jeu de démonstration à côté de l'existant :"
+              echo "relance en mettant **forcer** sur \`oui\`. À ne faire qu'une fois."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           {
             echo "### Base peuplée"
             echo ""

@@ -69,6 +69,12 @@ Un workflow GitHub Actions — `.github/workflows/peupler.yml` — fait le trava
 2. **À chaque fois** : onglet **Actions** → workflow **« Peupler la base de production »** →
    **Run workflow** → écrire `peupler` dans le champ de confirmation → lancer.
 
+Le second champ, **forcer**, reste sur `non` en temps normal. Il ne sert qu'à un cas : la base
+contient déjà autre chose — des comptes et des jeux saisis à la main — et on veut y ajouter le jeu
+de démonstration **à côté**. Le seed refuse par défaut dès qu'il voit un jeu, sans distinguer les
+siens de ceux des autres ; `forcer` lève ce refus. À n'utiliser qu'une fois : au second passage, il
+recréerait tout en double (un deuxième club, une deuxième série de jeudis, les mêmes échanges).
+
 Le workflow applique les migrations, charge le référentiel des communes, puis installe le jeu de
 démonstration. Il n'est **jamais** déclenché par un push : uniquement à la main, et seulement par
 quelqu'un ayant le droit d'écrire sur le dépôt. Les dates des tables sont calculées au moment de
