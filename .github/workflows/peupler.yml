@@ -22,6 +22,10 @@ jobs:
   peupler:
     name: Migrations et jeu de démonstration
     runs-on: ubuntu-latest
+    # Sans cette borne, un blocage court jusqu'à la limite de GitHub : six
+    # heures. C'est arrivé. Le travail réel se compte en minutes ; au-delà,
+    # c'est que quelque chose attend ce qui ne viendra pas.
+    timeout-minutes: 20
 
     env:
       # Les deux doivent pointer sur le POOLER Supabase (aws-0-….pooler.
@@ -100,7 +104,10 @@ jobs:
         run: npm ci
 
       # Sans effet si les tables sont déjà là ; indispensable au premier coup.
+      # Passe par DIRECT_URL — voir prisma.config.ts : appliquer des migrations
+      # au travers du pooler transactionnel fait attendre sans fin.
       - name: Appliquer les migrations
+        timeout-minutes: 5
         run: npx prisma migrate deploy
 
       # Le seed charge d'abord le référentiel des communes (37 283 localités),

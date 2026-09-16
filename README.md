@@ -27,7 +27,18 @@ npm run dev
 
 Dans ton projet Supabase → **Project Settings → Database → Connection string** :
 - **Transaction pooler** (port `6543`, avec `?pgbouncer=true`) → `DATABASE_URL` (utilisée par l'app)
-- **Direct connection** (port `5432`) → `DIRECT_URL` (utilisée uniquement par les migrations Prisma — le pooler ne supporte pas les prepared statements nécessaires aux migrations)
+- **Session pooler** (port `5432`, hôte en `…pooler.supabase.com`) → `DIRECT_URL` (utilisée par les
+  migrations Prisma, et par elles seules)
+
+⚠️ **Les migrations ne doivent jamais passer par le pooler transactionnel.** Prisma Migrate pose un
+verrou consultatif Postgres avant d'appliquer quoi que ce soit ; un pooler en mode « transaction »
+redistribue chaque requête sur une connexion serveur différente, si bien que le verrou n'est jamais
+tenu et que la commande attend indéfiniment — un lancement du workflow est resté bloqué six heures
+là-dessus. C'est le rôle de `DIRECT_URL`, et `prisma.config.ts` l'impose désormais au CLI : le
+`directUrl` du schéma seul ne suffisait pas, la configuration l'écrasait.
+
+Cela vaut pour `npm run build` comme pour le workflow : les deux appellent `prisma migrate deploy`.
+Si tu changes `DIRECT_URL` quelque part, change-la partout — Vercel compris.
 
 ### Peupler la base de production
 

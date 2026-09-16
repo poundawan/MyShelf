@@ -12,6 +12,21 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: env("DATABASE_URL"),
+    // Les migrations passent par DIRECT_URL, jamais par le pooler.
+    //
+    // Prisma Migrate pose un verrou consultatif Postgres avant d'appliquer
+    // quoi que ce soit. Un pooler en mode « transaction » (Supabase, port
+    // 6543) redistribue chaque requête sur une connexion serveur différente :
+    // le verrou n'est donc jamais tenu, et la commande attend indéfiniment.
+    // Un lancement est resté bloqué six heures là-dessus, jusqu'à la limite
+    // de GitHub Actions.
+    //
+    // Cette URL ne sert qu'au CLI. L'application, elle, se connecte par
+    // `src/lib/prisma.ts` avec son propre adaptateur sur DATABASE_URL — le
+    // pooler, qui reste le bon choix pour du serverless.
+    //
+    // En développement et en intégration continue, les deux variables
+    // désignent le même Postgres : le repli ne change rien.
+    url: process.env.DIRECT_URL ? env("DIRECT_URL") : env("DATABASE_URL"),
   },
 });
