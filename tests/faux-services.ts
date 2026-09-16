@@ -82,6 +82,12 @@ const COMMUNES_BAN: Record<string, [code: string, nom: string, cp: string, dep: 
   ],
 };
 
+/** PNG valide de 1×1 pixel transparent, en dur pour ne dépendre d'aucun fichier. */
+const PIXEL_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 const serveur = createServer((requete, reponse) => {
   const url = new URL(requete.url ?? "/", `http://127.0.0.1:${PORT}`);
   const terme = (url.searchParams.get("query") ?? "").toLowerCase();
@@ -91,6 +97,24 @@ const serveur = createServer((requete, reponse) => {
     reponse.writeHead(statut, { "Content-Type": "text/xml; charset=utf-8" });
     reponse.end(corps);
   };
+
+  // ---- Fonds de carte ----
+  //
+  // Une tuile PNG d'un pixel. Sans elle, la carte ne serait éprouvée nulle
+  // part : l'environnement de test n'a aucun accès sortant, et le vrai
+  // fournisseur de tuiles y est injoignable — comme BoardGameGeek et le
+  // géocodeur. `/tuiles/...` répond, `/tuiles-en-panne/...` refuse : les deux
+  // chemins du composant sont ainsi couverts.
+  if (url.pathname.startsWith("/tuiles-en-panne/")) {
+    reponse.writeHead(502, { "Content-Type": "text/plain" });
+    reponse.end("fournisseur de tuiles indisponible");
+    return;
+  }
+  if (url.pathname.startsWith("/tuiles/")) {
+    reponse.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "no-store" });
+    reponse.end(PIXEL_PNG);
+    return;
+  }
 
   // ---- Base Adresse Nationale ----
   if (url.pathname.startsWith("/search")) {

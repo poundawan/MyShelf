@@ -7,6 +7,7 @@ import { Button, Card, StatTile } from "@/components/ui";
 import { gameCategoryEmoji, eventTypeEmoji } from "@/lib/labels";
 import { formatDateShort, timeAgo, formatEventDate, formatDistanceKm, daysSince } from "@/lib/format";
 import { POSITION_COMMUNE, distanceDepuis, parProximite } from "@/lib/proximite";
+import { CarteProximite, type PointCarte } from "@/components/carte-proximite";
 
 /**
  * Ce qu'on appelle « près de chez toi ».
@@ -63,6 +64,23 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     return km !== null && km <= RAYON_PROCHE_KM;
   });
   const tablesProches = parProximite(nearbyEvents, distanceTable).slice(0, 4);
+
+  // La carte montre toutes les tables du rayon, pas seulement les quatre de la
+  // liste : une carte qui en cacherait la moitié mentirait sur ce qu'il y a
+  // autour. Celles dont on ignore la commune n'y figurent pas — on ne devine
+  // pas une position.
+  const pointsCarte: PointCarte[] = nearbyEvents.flatMap((ev) =>
+    ev.commune
+      ? [{
+          id: ev.id,
+          titre: ev.title,
+          sousTitre: `${formatEventDate(ev.startAt, locale)} · ${ev.city}`,
+          href: `/events/${ev.id}`,
+          latitude: ev.commune.latitude,
+          longitude: ev.commune.longitude,
+        }]
+      : [],
+  );
 
   const feed: FeedItem[] = [];
   for (const req of incomingRequests) {
@@ -197,7 +215,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             ) : tablesProches.length === 0 ? (
               <p className="mt-3 text-sm text-ink-soft">{t("home.nearby.none", { km: RAYON_PROCHE_KM })}</p>
             ) : (
-              <ul className="mt-3 flex flex-col">
+              <>
+                {/* La carte ne remplace pas la liste : elle la précède. Un
+                    fond de carte peut manquer, et il ne se lit pas au clavier
+                    ni à voix haute — la liste reste le contenu, la carte en
+                    est la vue. */}
+                <CarteProximite points={pointsCarte} origine={origine} />
+                <ul className="mt-3 flex flex-col">
                 {tablesProches.map((ev) => (
                   <li key={ev.id} className="border-b border-border last:border-b-0">
                     <Link href={`/events/${ev.id}`} className="flex items-baseline justify-between gap-3 py-2.5 hover:text-cream">
@@ -209,7 +233,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                     </Link>
                   </li>
                 ))}
-              </ul>
+                </ul>
+              </>
             )}
             <p className="mt-2 text-[11px] text-ink-soft">{t("home.nearby.caption", { km: RAYON_PROCHE_KM })}</p>
           </Card>

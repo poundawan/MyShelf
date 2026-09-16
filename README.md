@@ -521,10 +521,49 @@ part.
   coordonnées écrites à la main. Ce sont désormais les tables réellement les
   plus proches, à leur distance réelle.
 
+### La carte interactive
+
+L'encart « Autour de toi » de l'accueil affiche une vraie carte : Leaflet, des
+tuiles raster, un marqueur par table à portée, cliquable vers sa fiche.
+
+C'est le **premier écran qui dépende d'un tiers**. Jusque-là tout était calculé
+sur place ou embarqué dans le dépôt ; des tuiles, non — il faut quelqu'un pour
+les servir. Ce que cela implique, dit franchement :
+
+- Le navigateur de chaque visiteur demande ses tuiles **directement** au
+  fournisseur. Celui-ci voit son adresse IP et la zone regardée. Il ne voit ni
+  qui il est, ni ce qu'il cherche : les marqueurs sont placés par nous, à
+  partir de positions que nous seuls connaissons.
+- Ces positions restent des **centres de communes**, jamais des adresses —
+  même règle que pour les distances, même raison.
+- Le fournisseur se change par variable d'environnement
+  (`NEXT_PUBLIC_TUILES_URL`, `NEXT_PUBLIC_TUILES_ATTRIBUTION`), sans toucher au
+  code : un service qui ferme ou durcit ses conditions ne bloque rien.
+- Par défaut, OpenStreetMap. **Leur politique d'usage des tuiles est à
+  vérifier** avant toute mise en avant : elle encadre le volume d'appels et
+  impose l'attribution. Celle-ci s'affiche dans le coin de la carte, et un test
+  échoue si elle disparaît.
+
+Deux garde-fous dans le code :
+
+- Si **aucune tuile n'arrive** en six secondes, la carte s'efface et le dit. Un
+  fond gris et muet se prendrait pour une région vide, alors que c'est le
+  fournisseur qui manque. La liste, elle, reste exacte — et c'est pour cela
+  qu'elle n'a pas été remplacée : elle se lit au clavier et à voix haute, la
+  carte non.
+- L'origine des tuiles est **déclarée dans la politique de contenu**
+  (`next.config.ts`). `img-src` couvre déjà tout le https, mais un fournisseur
+  servi en clair serait refusé par notre propre politique — c'est arrivé au
+  faux service pendant les tests, et la carte s'affichait vide sans que rien ne
+  le signale.
+
+Les tests n'appellent **aucun** fournisseur réel : `tests/faux-services.ts` sert
+des tuiles d'un pixel, et un second chemin les refuse pour éprouver le repli.
+La vérification porte sur `naturalWidth` et non sur la présence de la balise :
+une image cassée est présente, dimensionnée, et paraîtrait « visible ».
+
 ### Ce qui n'est pas fait
 
-- **Pas de carte interactive.** Elle demande un fournisseur de tuiles, donc un
-  tiers ; c'est un chantier à part.
 - **Pas de « utiliser ma position ».** L'application ne stocke que des
   positions de communes : récupérer des coordonnées exactes pour les arrondir
   aussitôt n'apporterait qu'une permission de plus à demander.
@@ -552,7 +591,6 @@ Voir `prisma/schema.prisma` :
 
 ## Pistes d'évolution
 
-- Carte interactive, une fois choisi un fournisseur de tuiles.
 - Notifications par e-mail ou push (celles dans l'application existent).
 - Prolonger une série arrivée à son terme, et déplacer une séance sans casser la cadence.
 - Corriger une fiche du catalogue partagé (titre, durée, nombre de joueurs).

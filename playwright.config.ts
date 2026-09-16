@@ -97,6 +97,10 @@ export default defineConfig({
         // entière vérifie donc que l'application l'envoie.
         BGG_API_TOKEN: "jeton-de-test",
         ADRESSE_API_BASE: `http://127.0.0.1:${PORT_SERVICES}`,
+        // Les tuiles viennent du faux service : aucun fournisseur réel n'est
+        // sollicité par la suite, pas plus ici qu'en développement.
+        NEXT_PUBLIC_TUILES_URL: `http://127.0.0.1:${PORT_SERVICES}/tuiles/{z}/{x}/{y}.png`,
+        NEXT_PUBLIC_TUILES_ATTRIBUTION: "Fonds de carte de test",
       },
     },
   ],

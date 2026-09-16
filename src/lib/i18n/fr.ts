@@ -141,6 +141,10 @@ export const fr: Dictionary = {
   "home.feed.cardsBody": "{set}, dont la {name}.",
   "home.feed.cardsBodyNoSet": "La {name}.",
   "home.nearby": "Autour de toi",
+  "carte.libelle": "Carte des tables autour de toi",
+  "carte.toi": "Ta commune",
+  "carte.indisponible":
+    "Le fond de carte n'a pas pu être chargé. La liste ci-dessous reste exacte.",
   "home.nearby.map": "Tout voir",
   "home.nearby.caption": "Les tables les plus proches, dans un rayon de {km} km.",
   "home.nearby.none": "Aucune table à moins de {km} km pour l'instant. À toi d'en ouvrir une ?",

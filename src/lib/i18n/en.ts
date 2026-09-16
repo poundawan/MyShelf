@@ -145,6 +145,10 @@ export const en: Dictionary = {
   "home.nearby.noCommune": "Set your town to see what is happening near you.",
   "home.nearby.setCommune": "Set my town",
   "home.nearby": "Around you",
+  "carte.libelle": "Map of tables near you",
+  "carte.toi": "Your town",
+  "carte.indisponible":
+    "The map background could not be loaded. The list below is still accurate.",
   "home.nearby.map": "See all",
   "home.nearby.caption": "The closest tables, within {km} km.",
   "home.club.yours": "Your club: {name}",

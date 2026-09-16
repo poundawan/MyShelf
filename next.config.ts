@@ -11,6 +11,26 @@ import type { NextConfig } from "next";
  */
 const enDeveloppement = process.env.NODE_ENV !== "production";
 
+/**
+ * Origine du fournisseur de tuiles, à ajouter aux images autorisées.
+ *
+ * `img-src` couvre déjà tout le https, donc un fournisseur réel passe sans
+ * rien déclarer. Mais un fournisseur servi en clair — celui du faux service
+ * pendant les tests, sur un autre port — serait refusé par notre propre
+ * politique, et la carte s'afficherait vide sans que rien ne le dise à
+ * l'écran. Le déclarer explicitement rend la dépendance visible ici, là où on
+ * vient lire de quoi l'application a besoin.
+ */
+function origineDesTuiles(): string {
+  const gabarit = process.env.NEXT_PUBLIC_TUILES_URL;
+  if (!gabarit) return "";
+  try {
+    return new URL(gabarit.replace(/\{[zxy]\}/g, "0")).origin;
+  } catch {
+    return "";
+  }
+}
+
 const csp = [
   "default-src 'self'",
   // `unsafe-eval` n'est nécessaire qu'au rechargement à chaud du serveur de
@@ -18,7 +38,7 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${enDeveloppement ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob: https:",
+  `img-src 'self' data: blob: https:${origineDesTuiles() ? ` ${origineDesTuiles()}` : ""}`,
   "connect-src 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
